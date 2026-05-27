@@ -1,7 +1,8 @@
 import { APICallError } from "ai"
 import { STATUS_CODES } from "http"
+import { Schema } from "effect"
 import { iife } from "@/util/iife"
-import type { ProviderID } from "./schema"
+import { ModelID, ProviderID } from "./schema"
 
 // Adapted from overflow detection patterns in:
 // https://github.com/badlogic/pi-mono/blob/main/packages/ai/src/utils/overflow.ts
@@ -200,5 +201,42 @@ export function parseAPICallError(input: { providerID: ProviderID; error: APICal
     metadata,
   }
 }
+
+export class ModelNotFoundError extends Schema.TaggedErrorClass<ModelNotFoundError>()("ProviderModelNotFoundError", {
+  providerID: ProviderID,
+  modelID: ModelID,
+  suggestions: Schema.optional(Schema.Array(Schema.String)),
+  cause: Schema.optional(Schema.Defect),
+}) {
+  static isInstance(input: unknown): input is ModelNotFoundError {
+    return input instanceof ModelNotFoundError
+  }
+}
+
+export class InitError extends Schema.TaggedErrorClass<InitError>()("ProviderInitError", {
+  providerID: ProviderID,
+  cause: Schema.optional(Schema.Defect),
+}) {
+  static isInstance(input: unknown): input is InitError {
+    return input instanceof InitError
+  }
+}
+
+export class NoProvidersError extends Schema.TaggedErrorClass<NoProvidersError>()("ProviderNoProvidersError", {}) {
+  static isInstance(input: unknown): input is NoProvidersError {
+    return input instanceof NoProvidersError
+  }
+}
+
+export class NoModelsError extends Schema.TaggedErrorClass<NoModelsError>()("ProviderNoModelsError", {
+  providerID: ProviderID,
+}) {
+  static isInstance(input: unknown): input is NoModelsError {
+    return input instanceof NoModelsError
+  }
+}
+
+export type DefaultModelError = ModelNotFoundError | NoProvidersError | NoModelsError
+export type Error = ModelNotFoundError | InitError | NoProvidersError | NoModelsError
 
 export * as ProviderError from "./error"
