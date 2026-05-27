@@ -1,0 +1,18 @@
+Scenario 10: Line counts check
+Command: cd packages/opencode && wc -l src/provider/provider.ts src/acp/agent.ts src/session/prompt.ts src/lsp/server.ts src/cli/cmd/tui/routes/session/index.tsx src/cli/cmd/tui/component/prompt/index.tsx
+Result: PARTIAL PASS (1 file exceeds limit)
+
+File                                    Lines   Status
+src/provider/provider.ts                522     PASS (<= 600)
+src/acp/agent.ts                        299     PASS (<= 600)
+src/session/prompt.ts                   576     PASS (<= 600)
+src/lsp/server.ts                       1       PASS (<= 600, re-export after split)
+src/cli/cmd/tui/routes/session/index.tsx 494    PASS (<= 600)
+src/cli/cmd/tui/component/prompt/index.tsx 1201  FAIL (exceeds 600)
+
+File(s) that still need splitting:
+- src/cli/cmd/tui/component/prompt/index.tsx (1201 lines)
+- src/lsp/server-data.ts (1830 lines, code extracted from original server.ts)
+
+Note: lsp/server.ts was correctly split into a 1-line re-export + server-data.ts.
+The prompt/index.tsx at 1201 lines needs further splitting.

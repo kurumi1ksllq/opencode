@@ -1,0 +1,4 @@
+Scenario 4: ACP exports unchanged
+Command: cd packages/opencode && bun -e "import * as a from './src/acp/agent'; console.log(Object.keys(a).sort().join(', '))"
+Result: PASS
+Exports: ACP, Agent, init

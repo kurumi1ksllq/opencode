@@ -1,0 +1,5 @@
+Scenario 6: LSP server exports unchanged
+Command: cd packages/opencode && bun -e "import * as l from './src/lsp/server'; console.log(Object.keys(l).sort().join(', '))"
+Result: PASS
+Exports: Astro, BashLS, Biome, CSharp, Clangd, Clojure, Dart, Deno, DockerfileLS, ESLint, ElixirLS, FSharp, Gleam, Gopls, HLS, JDTLS, JuliaLS, KotlinLS, LuaLS, Nixd, Ocaml, Oxlint, PHPIntelephense, Prisma, Pyright, Razor, Rubocop, RustAnalyzer, SourceKit, Svelte, TerraformLS, TexLab, Tinymist, Ty, Typescript, Vue, YamlLS, Zls
+Note: src/lsp/server.ts now re-exports from src/lsp/server-data.ts (expected split artifact)

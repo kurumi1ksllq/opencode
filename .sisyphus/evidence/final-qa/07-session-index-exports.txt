@@ -1,0 +1,4 @@
+Scenario 7: Session index exports unchanged
+Command: cd packages/opencode && bun -e "import * as s from './src/cli/cmd/tui/routes/session/index'; console.log(Object.keys(s).sort().join(', '))"
+Result: PASS
+Exports: Session

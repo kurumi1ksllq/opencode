@@ -1,0 +1,64 @@
+{
+  "active_plan": "D:\\Documents\\openJarvis\\opencode\\.sisyphus\\plans\\giant-file-splitting.md",
+  "started_at": "2026-05-26T21:56:01.067Z",
+  "session_ids": [
+    "ses_199fbe9ccffemo8kiDL1bdlQdf",
+    "ses_1996df146ffefO4BffdbPykTHS",
+    "ses_1996deff4ffe0ZhX65HMWBk52v",
+    "ses_1996deeb2ffeORvxEpOOjxjefk"
+  ],
+  "session_origins": {
+    "ses_199fbe9ccffemo8kiDL1bdlQdf": "direct",
+    "ses_1996df146ffefO4BffdbPykTHS": "appended",
+    "ses_1996deff4ffe0ZhX65HMWBk52v": "appended",
+    "ses_1996deeb2ffeORvxEpOOjxjefk": "appended"
+  },
+  "plan_name": "giant-file-splitting",
+  "agent": "atlas",
+  "task_sessions": {
+    "todo:1": {
+      "task_key": "todo:1",
+      "task_label": "1",
+      "task_title": "**Add critical tests for acp/agent.ts**",
+      "session_id": "ses_1996deeb2ffeORvxEpOOjxjefk",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-27T00:00:18.716Z"
+    },
+    "todo:8": {
+      "task_key": "todo:8",
+      "task_label": "8",
+      "task_title": "**Split acp/agent.ts (1966→~500 lines each)**",
+      "session_id": "ses_1996deeb2ffeORvxEpOOjxjefk",
+      "agent": "Sisyphus-Junior",
+      "category": "deep",
+      "updated_at": "2026-05-27T00:04:49.865Z"
+    },
+    "todo:9": {
+      "task_key": "todo:9",
+      "task_label": "9",
+      "task_title": "**Split session/index.tsx (2343→~500 lines each)**",
+      "session_id": "ses_199390525ffehrkRghcsYcP30q",
+      "agent": "Sisyphus-Junior",
+      "updated_at": "2026-05-27T01:10:09.765Z"
+    },
+    "todo:10": {
+      "task_key": "todo:10",
+      "task_label": "10",
+      "task_title": "**Split prompt/index.tsx (1676→~500 lines each)**",
+      "session_id": "ses_1990388cdffe6puS9Ku44vv9K1",
+      "agent": "Sisyphus-Junior",
+      "category": "visual-engineering",
+      "updated_at": "2026-05-27T01:41:23.394Z"
+    },
+    "final-wave:f1": {
+      "task_key": "final-wave:f1",
+      "task_label": "F1",
+      "task_title": "**Plan Compliance Audit** — `oracle`",
+      "session_id": "ses_19879045dffesmSPb6trlpSy4j",
+      "agent": "Sisyphus-Junior",
+      "category": "unspecified-high",
+      "updated_at": "2026-05-27T03:47:11.386Z"
+    }
+  }
+}

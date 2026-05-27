@@ -1,0 +1,5 @@
+Scenario 9: Test-specific exports pass
+Command: cd packages/opencode && bun test test/acp/agent.test.ts test/lsp/server.test.ts test/cli/cmd/tui/session-index.test.tsx test/cli/cmd/tui/prompt-index.test.tsx test/provider/provider.test.ts
+Result: PASS
+Output: 318 pass, 0 fail, 1225 expect() calls
+Ran 318 tests across 5 files.

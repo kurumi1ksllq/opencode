@@ -1,3 +1,25 @@
+## Project Structure
+
+This monorepo has 13 packages under `packages/`:
+
+| Package | Description | AGENTS.md |
+|---|---|---|
+| `opencode` | Main application (Effect + TUI) | [packages/opencode/AGENTS.md](packages/opencode/AGENTS.md) |
+| `app` | Web app (SolidJS) | [packages/app/AGENTS.md](packages/app/AGENTS.md) |
+| `ui` | Component library (SolidJS + Kobalte) | [packages/ui/AGENTS.md](packages/ui/AGENTS.md) |
+| `core` | Core types, plugins, Effect services | [packages/core/AGENTS.md](packages/core/AGENTS.md) |
+| `llm` | LLM routing and protocol layer | [packages/llm/AGENTS.md](packages/llm/AGENTS.md) |
+| `effect-drizzle-sqlite` | Vendored Drizzle Effect SQLite adapter | [packages/effect-drizzle-sqlite/AGENTS.md](packages/effect-drizzle-sqlite/AGENTS.md) |
+| `sdk/js` | JavaScript SDK |
+| `web` | Landing/marketing site |
+| `plugin` | Plugin host |
+| `http-recorder` | HTTP request recording for tests |
+| `storybook` | Storybook configuration |
+| `docs` | Documentation |
+| `identity` | Identity/auth utilities |
+
+See each package's `AGENTS.md` for package-specific conventions.
+
 - To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
 - ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
 - The default branch in this repo is `dev`.

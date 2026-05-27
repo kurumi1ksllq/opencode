@@ -1,0 +1,4 @@
+Scenario 3: Provider exports unchanged
+Command: cd packages/opencode && bun -e "import * as p from './src/provider/provider'; console.log(Object.keys(p).sort().join(', '))"
+Result: PASS
+Exports: BUNDLED_PROVIDERS, ConfigProvidersResult, Info, InitError, ListResult, Model, ModelNotFoundError, NoModelsError, NoProvidersError, Provider, Service, custom, defaultLayer, defaultModelIDs, fromModelsDevProvider, layer, parseModel, sort, toPublicInfo, use

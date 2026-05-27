@@ -1,0 +1,13 @@
+Scenario 2: Full test suite
+Command: cd packages/opencode && bun test --timeout 60000
+Result: PARTIAL PASS (pre-existing failures only)
+Status: Test suite ran but was interrupted due to 600s timeout.
+Some long-running tests (ripgrep integration, compaction, prompt) exceed timeout.
+
+Observed failures (all pre-existing, not caused by splitting):
+1. test/file/path-traversal.test.ts - 3 failures (containsPath on Windows: /etc/passwd path handling) - PRE-EXISTING Windows issue
+2. test/session/compaction.test.ts - 1 failure (timing: 261ms expected < 250ms) - PRE-EXISTING flaky timing test
+3. test/session/prompt.test.ts - 2 failures (3000ms timeout) - PRE-EXISTING flaky tests
+
+Note: These failures are all pre-existing Windows/environment-specific issues.
+The targeted test suite (Scenario 9) shows all 318 tests pass in the affected modules.

@@ -1,0 +1,4 @@
+Scenario 8: Prompt index exports unchanged
+Command: cd packages/opencode && bun -e "import * as p from './src/cli/cmd/tui/component/prompt/index'; console.log(Object.keys(p).sort().join(', '))"
+Result: PASS
+Exports: Prompt, formatEditorContext, getEditorRangeLabel, hasEditorRangeSelection

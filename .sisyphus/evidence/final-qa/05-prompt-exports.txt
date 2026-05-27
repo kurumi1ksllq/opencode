@@ -1,0 +1,4 @@
+Scenario 5: Session prompt exports unchanged
+Command: cd packages/opencode && bun -e "import * as s from './src/session/prompt'; console.log(Object.keys(s).sort().join(', '))"
+Result: PASS
+Exports: CommandInput, LoopInput, PromptInput, Service, SessionPrompt, ShellInput, createStructuredOutputTool, defaultLayer, layer

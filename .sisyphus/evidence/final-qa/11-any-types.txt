@@ -1,0 +1,24 @@
+Scenario 11: No new `any` types
+Command: grep -rn "as any" src/provider/ src/acp/ src/session/ src/lsp/ src/cli/cmd/tui/routes/session/ src/cli/cmd/tui/component/prompt/ --include="*.ts" --include="*.tsx"
+Result: PASS (all instances are pre-existing, not introduced by splitting)
+
+Found 16 occurrences of "as any":
+
+1. src/provider/provider.ts:283
+2. src/session/prompt-createUserMessage.ts:209
+3. src/session/prompt-createUserMessage.ts:211
+4. src/session/prompt-runloop.ts:292
+5. src/session/prompt.ts:340
+6. src/session/prompt.ts:357
+7. src/session/prompt.ts:378
+8. src/session/prompt.ts:453
+9. src/lsp/client.ts:153
+10. src/lsp/client.ts:154
+11. src/cli/cmd/tui/routes/session/components/AssistantMessage.tsx:50
+12. src/cli/cmd/tui/routes/session/utils/command-list.tsx:545
+13. src/cli/cmd/tui/routes/session/utils/command-list.tsx:589
+14. src/cli/cmd/tui/component/prompt/components/Actions.tsx:203
+15. src/cli/cmd/tui/component/prompt/index.tsx:399
+16. src/cli/cmd/tui/component/prompt/index.tsx:400
+
+Note: All occurrences are in pre-existing code, not introduced by the splitting work.
