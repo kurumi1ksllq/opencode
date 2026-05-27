@@ -35,6 +35,7 @@ import { ConfigModelID } from "./model-id"
 import { ConfigParse } from "./parse"
 import { ConfigPaths } from "./paths"
 import { ConfigPermission } from "./permission"
+import { ConfigSymphony } from "../symphony/config/symphony"
 import { ConfigPlugin } from "./plugin"
 import { ConfigProvider } from "./provider"
 import { ConfigReference } from "./reference"
@@ -243,6 +244,7 @@ export const Info = Schema.Struct({
   }),
   layout: Schema.optional(ConfigLayout.Layout).annotate({ description: "@deprecated Always uses stretch layout." }),
   permission: Schema.optional(ConfigPermission.Info),
+  symphony: Schema.optional(ConfigSymphony.Info),
   tools: Schema.optional(Schema.Record(Schema.String, Schema.Boolean)),
   attachment: Schema.optional(ConfigAttachment.Info).annotate({
     description: "Attachment processing configuration, including image size limits and resizing behavior",
