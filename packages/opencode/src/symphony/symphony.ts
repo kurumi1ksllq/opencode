@@ -7,6 +7,7 @@ import { ConfigSymphony } from "./config/symphony"
 import { Job, JobID, JobStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
 import { SymphonyRepo } from "./repo"
 import type { TaskDefRow } from "./repo"
+import { Review } from "./review"
 import { Worker } from "./worker"
 import { decomposeJobTask } from "./decompose"
 import { getReadyTasks } from "./plan"
@@ -59,7 +60,7 @@ function rowToTaskDef(row: TaskDefRow): TaskDef {
   })
 }
 
-export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service | Worker.Service> =
+export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service | Worker.Service | Review.Service> =
   Layer.effect(
     Service,
     Effect.gen(function* () {
@@ -69,6 +70,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       const scope = yield* Scope.Scope
       const worktree = yield* Worktree.Service
       const worker = yield* Worker.Service
+      const review = yield* Review.Service
 
       let pollingFiber: Option.Option<Fiber.Fiber<void>> = Option.none()
 
@@ -197,6 +199,25 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
               Effect.logWarning("Task execution failed", { taskId: task.id, error: err.message }),
             ),
           )
+
+          // Review the completed task
+          yield* review.reviewTask(task.id).pipe(
+            Effect.andThen((result) => {
+              if (result.passed) {
+                return Effect.logInfo("Task review passed", { taskId: task.id })
+              }
+              return Effect.logWarning("Task review failed", {
+                taskId: task.id,
+                feedback: result.feedback ?? "none",
+              })
+            }),
+            Effect.catch((err) =>
+              Effect.logWarning("Task review error (skipped)", {
+                taskId: task.id,
+                error: err.message,
+              }),
+            ),
+          )
         }
       })
 
@@ -245,6 +266,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(Worktree.defaultLayer),
   Layer.provide(Worker.defaultLayer),
+  Layer.provide(Review.defaultLayer),
   Layer.provide(Config.defaultLayer),
   Layer.provide(SymphonyRepo.layer),
 )

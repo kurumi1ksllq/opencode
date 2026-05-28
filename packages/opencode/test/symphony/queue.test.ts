@@ -6,7 +6,8 @@ import { SymphonyRepo } from "@/symphony/repo"
 import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { Database } from "@/storage/db"
-import { JobID } from "@/symphony/schema"
+import { JobID, ReviewResult } from "@/symphony/schema"
+import { Review } from "@/symphony/review"
 import { Worker } from "@/symphony/worker"
 import { testEffect } from "../lib/effect"
 
@@ -37,6 +38,14 @@ const mockWorkerLayer = Layer.mock(Worker.Service)({
   executeTask: () => Effect.void,
 })
 
+// Mock Review — all tasks pass review
+const mockReviewLayer = Layer.succeed(
+  Review.Service,
+  Review.Service.of({
+    reviewTask: () => Effect.succeed(new ReviewResult({ passed: true })),
+  }),
+)
+
 // Minimal mocks for services the Symphony layer requires but the tests don't exercise
 const mockConfigLayer = Layer.mock(Config.Service)({})
 const mockHttpLayer = Layer.succeed(
@@ -56,6 +65,7 @@ const it = testEffect(
       Layer.provide(mockWorktreeLayer),
       Layer.provide(mockConfigLayer),
       Layer.provide(mockHttpLayer),
+      Layer.provide(mockReviewLayer),
       Layer.provide(mockWorkerLayer),
     ),
     SymphonyRepo.layer,
