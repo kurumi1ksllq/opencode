@@ -119,4 +119,19 @@ export class DecomposeError extends Schema.TaggedErrorClass<DecomposeError>()("S
   message: Schema.String,
 }) {}
 
+export class WorkerError extends Schema.TaggedErrorClass<WorkerError>()("SymphonySchema.WorkerError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Defect),
+}) {}
+
+export class ReviewError extends Schema.TaggedErrorClass<ReviewError>()("SymphonySchema.ReviewError", {
+  message: Schema.String,
+  cause: Schema.optional(Schema.Defect),
+}) {}
+
+export class ReviewResult extends Schema.Class<ReviewResult>("ReviewResult")({
+  passed: Schema.Boolean,
+  feedback: Schema.optional(Schema.String),
+}) {}
+
 export * as SymphonySchema from "./schema"

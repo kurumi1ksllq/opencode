@@ -73,6 +73,7 @@ export interface Interface {
   readonly getTask: (id: TaskID) => Effect.Effect<Option.Option<TaskDefRow>, SymphonyRepoError>
   readonly listTasksByPlan: (planId: PlanID) => Effect.Effect<TaskDefRow[], SymphonyRepoError>
   readonly updateTaskStatus: (id: TaskID, status: string, overrides?: Record<string, unknown>) => Effect.Effect<void, SymphonyRepoError>
+  readonly updateTaskResult: (id: TaskID, result: string) => Effect.Effect<void, SymphonyRepoError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/SymphonyRepo") {}
@@ -207,6 +208,12 @@ export const layer: Layer.Layer<Service> = Layer.effect(
         ).pipe(Effect.asVoid),
     )
 
+    const updateTaskResult = Effect.fn("SymphonyRepo.updateTaskResult")((id: TaskID, result: string) =>
+      tx((db) =>
+        db.update(TaskDefTable).set({ result }).where(eq(TaskDefTable.id, id)).run(),
+      ).pipe(Effect.asVoid),
+    )
+
     return Service.of({
       insertIssue,
       getIssue,
@@ -223,6 +230,7 @@ export const layer: Layer.Layer<Service> = Layer.effect(
       getTask,
       listTasksByPlan,
       updateTaskStatus,
+      updateTaskResult,
     })
   }),
 )
