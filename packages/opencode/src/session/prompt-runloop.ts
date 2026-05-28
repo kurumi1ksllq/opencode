@@ -101,7 +101,7 @@ export const runLoop = Effect.fn("SessionPrompt.run")(function* (
 
     const { user: lastUser, assistant: lastAssistantVal, finished: lastFinished, tasks } = MessageV2.latest(msgs)
 
-    if (!lastUser) throw new Error("No user message found in stream. This should never happen.")
+    if (!lastUser) return yield* Effect.die(new Error("No user message found in stream. This should never happen."))
 
     const lastAssistantMsg = msgs.findLast(
       (msg) => msg.info.role === "assistant" && msg.info.id === lastAssistantVal?.id,
@@ -168,7 +168,7 @@ export const runLoop = Effect.fn("SessionPrompt.run")(function* (
       const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
       const error = new NamedError.Unknown({ message: `Agent not found: "${lastUser.agent}".${hint}` })
       yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
-      throw error
+      return yield* Effect.fail(error)
     }
     const maxSteps = agent.steps ?? Infinity
     const isLastStep = step >= maxSteps

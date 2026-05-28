@@ -59,7 +59,7 @@ export const shellImpl = Effect.fn("SessionPrompt.shellImpl")(function* (
           const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
           const error = new NamedError.Unknown({ message: `Agent not found: "${input.agent}".${hint}` })
           yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-          throw error
+          return yield* Effect.fail(error)
         }
         const model = input.model ?? agent.model ?? (yield* currentModel(input.sessionID))
         const userMsg: MessageV2.User = {

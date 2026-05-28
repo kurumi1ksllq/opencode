@@ -99,7 +99,7 @@ export const handleSubtask = Effect.fn("SessionPrompt.handleSubtask")(function* 
     const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
     const error = new NamedError.Unknown({ message: `Agent not found: "${task.agent}".${hint}` })
     yield* bus.publish(Session.Event.Error, { sessionID, error: error.toObject() })
-    throw error
+    return yield* Effect.fail(error)
   }
 
   let error: Error | undefined

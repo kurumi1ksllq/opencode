@@ -349,7 +349,7 @@ export const layer = Layer.effect(
 
           case "tool-input-start":
             if (ctx.assistantMessage.summary) {
-              throw new Error(`Tool call not allowed while generating summary: ${value.name}`)
+              return yield* Effect.fail(new Error(`Tool call not allowed while generating summary: ${value.name}`))
             }
             yield* ensureToolCall(value)
             return
@@ -376,7 +376,7 @@ export const layer = Layer.effect(
 
           case "tool-call": {
             if (ctx.assistantMessage.summary) {
-              throw new Error(`Tool call not allowed while generating summary: ${value.name}`)
+              return yield* Effect.fail(new Error(`Tool call not allowed while generating summary: ${value.name}`))
             }
             const toolCall = yield* ensureToolCall(value)
             const input = toolInput(value.input)
@@ -523,7 +523,7 @@ export const layer = Layer.effect(
           }
 
           case "provider-error":
-            throw new Error(value.message)
+            return yield* Effect.fail(new Error(value.message))
 
           case "step-start":
             if (!ctx.snapshot) ctx.snapshot = yield* snapshot.track()

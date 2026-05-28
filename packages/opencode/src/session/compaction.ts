@@ -350,7 +350,7 @@ export const layer = Layer.effect(
     }) {
       const parent = input.messages.findLast((m) => m.info.id === input.parentID)
       if (!parent || parent.info.role !== "user") {
-        throw new Error(`Compaction parent must be a user message: ${input.parentID}`)
+        return yield* Effect.fail(new Error(`Compaction parent must be a user message: ${input.parentID}`))
       }
       const userMessage = parent.info
       const compactionPart = parent.parts.find((part): part is MessageV2.CompactionPart => part.type === "compaction")

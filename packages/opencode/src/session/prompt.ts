@@ -403,7 +403,7 @@ export const layer = Layer.effect(
       if (Option.isSome(match)) return match.value
       const msgs = yield* sessions.messages({ sessionID, limit: 1 }).pipe(Effect.orDie)
       if (msgs.length > 0) return msgs[0]
-      throw new Error("Impossible")
+      return yield* Effect.die(new Error("Impossible"))
     })
 
     const runLoopHelpers: RunLoopHelpers = {
@@ -461,7 +461,7 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available commands: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Command not found: "${input.command}".${hint}` })
         yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.fail(error)
       }
       const agentName = cmd.agent ?? input.agent
 
@@ -522,9 +522,8 @@ export const layer = Layer.effect(
         const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
         const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
         yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-        throw error
+        return yield* Effect.fail(error)
       }
-
       const templateParts = yield* resolvePromptParts(template)
       const isSubtask = (agent.mode === "subagent" && cmd.subtask !== false) || cmd.subtask === true
       const parts = isSubtask
