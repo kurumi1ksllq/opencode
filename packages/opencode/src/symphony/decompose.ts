@@ -114,7 +114,7 @@ function textContainsKeywords(text: string, keywords: string[]): boolean {
   return keywords.some((kw) => lower.includes(kw))
 }
 
-export function decomposeIssue(
+export function decomposeJobTask(
   title: string,
   body?: string,
 ): Array<{ title: string; description: string; acceptance: string[] }> {

@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 import { SymphonyRepo } from "@/symphony/repo"
-import { IssueID, WorkspaceID, PlanID, TaskID, SymphonyRepoError } from "@/symphony/schema"
+import { JobID, WorkspaceID, PlanID, TaskID, SymphonyRepoError } from "@/symphony/schema"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(SymphonyRepo.layer)
@@ -9,246 +9,233 @@ const it = testEffect(SymphonyRepo.layer)
 const uid = () => crypto.randomUUID()
 
 describe("SymphonyRepo", () => {
-  it.live("insertIssue and getIssue", () =>
+  it.live("insertJob and getJob", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id = uid() as IssueID
+      const id = uid() as JobID
 
-      const issue = yield* repo.insertIssue({
+      const job = yield* repo.insertJob({
         id,
-        repo_owner: "test-owner",
-        repo_name: "test-repo",
-        issue_number: 42,
+        source: "github",
+        type: "issue",
         title: "Test Issue",
-        body: "This is a test issue body",
+        payload: { repo_owner: "test-owner", repo_name: "test-repo", issue_number: 42, body: "This is a test issue body", metadata: { source: "test", priority: 1 } },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: { source: "test", priority: 1 },
       })
 
-      expect(issue.id).toBe(id)
-      expect(issue.repo_owner).toBe("test-owner")
-      expect(issue.repo_name).toBe("test-repo")
-      expect(issue.issue_number).toBe(42)
-      expect(issue.title).toBe("Test Issue")
-      expect(issue.body).toBe("This is a test issue body")
-      expect(issue.status).toBe("pending")
-      expect(issue.worktree_name).toBeNull()
-      expect(issue.metadata).toEqual({ source: "test", priority: 1 })
-      expect(typeof issue.time_created).toBe("number")
-      expect(typeof issue.time_updated).toBe("number")
+      expect(job.id).toBe(id)
+      expect(job.payload).toEqual(expect.objectContaining({ repo_owner: "test-owner", repo_name: "test-repo", issue_number: 42, body: "This is a test issue body", metadata: { source: "test", priority: 1 } }))
+      expect(job.title).toBe("Test Issue")
+      expect(job.status).toBe("pending")
+      expect(job.worktree_name).toBeNull()
+      expect(typeof job.time_created).toBe("number")
+      expect(typeof job.time_updated).toBe("number")
 
-      const retrieved = yield* repo.getIssue(id)
+      const retrieved = yield* repo.getJob(id)
       expect(Option.isSome(retrieved)).toBe(true)
       expect(Option.getOrThrow(retrieved).title).toBe("Test Issue")
-      expect(Option.getOrThrow(retrieved).body).toBe("This is a test issue body")
+      expect(Option.getOrThrow(retrieved).payload).toEqual(expect.objectContaining({ body: "This is a test issue body" }))
 
-      yield* repo.deleteIssue(id)
+      yield* repo.deleteJob(id)
     }),
   )
 
-  it.live("insertIssue with duplicate ID", () =>
+  it.live("insertJob with duplicate ID", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id = uid() as IssueID
+      const id = uid() as JobID
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "First",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
       const error = yield* Effect.flip(
-        repo.insertIssue({
+        repo.insertJob({
           id,
-          repo_owner: "owner",
-          repo_name: "repo",
-          issue_number: 2,
+          source: "github",
+          type: "issue",
           title: "Duplicate",
-          body: null,
+          payload: { repo_owner: "owner", repo_name: "repo", issue_number: 2, body: null },
+          priority: 5,
           status: "pending",
           worktree_name: null,
-          metadata: {},
         }),
       )
 
       expect(error).toBeInstanceOf(SymphonyRepoError)
       expect(error._tag).toBe("SymphonyRepoError")
 
-      yield* repo.deleteIssue(id)
+      yield* repo.deleteJob(id)
     }),
   )
 
-  it.live("listIssues by status", () =>
+  it.live("listJobs by status", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id1 = uid() as IssueID
-      const id2 = uid() as IssueID
+      const id1 = uid() as JobID
+      const id2 = uid() as JobID
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: id1,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Pending Issue",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: id2,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 2,
+        source: "github",
+        type: "issue",
         title: "Completed Issue",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 2, body: null },
+        priority: 5,
         status: "completed",
         worktree_name: null,
-        metadata: {},
       })
 
-      const pendingIssues = yield* repo.listIssues("pending")
-      expect(pendingIssues.length).toBeGreaterThanOrEqual(1)
-      expect(pendingIssues.some((i) => i.id === id1)).toBe(true)
-      expect(pendingIssues.some((i) => i.id === id2)).toBe(false)
+      const pendingJobs = yield* repo.listJobs("pending")
+      expect(pendingJobs.length).toBeGreaterThanOrEqual(1)
+      expect(pendingJobs.some((i) => i.id === id1)).toBe(true)
+      expect(pendingJobs.some((i) => i.id === id2)).toBe(false)
 
-      const completedIssues = yield* repo.listIssues("completed")
-      expect(completedIssues.some((i) => i.id === id1)).toBe(false)
-      expect(completedIssues.some((i) => i.id === id2)).toBe(true)
+      const completedJobs = yield* repo.listJobs("completed")
+      expect(completedJobs.some((i) => i.id === id1)).toBe(false)
+      expect(completedJobs.some((i) => i.id === id2)).toBe(true)
 
-      yield* repo.deleteIssue(id1)
-      yield* repo.deleteIssue(id2)
+      yield* repo.deleteJob(id1)
+      yield* repo.deleteJob(id2)
     }),
   )
 
-  it.live("updateIssueStatus", () =>
+  it.live("updateJobStatus", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id = uid() as IssueID
+      const id = uid() as JobID
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
-        title: "Updatable Issue",
-        body: null,
+        source: "github",
+        type: "issue",
+        title: "Updatable Job",
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
-      yield* repo.updateIssueStatus(id, "processing")
+      yield* repo.updateJobStatus(id, "processing")
 
-      const retrieved = yield* repo.getIssue(id)
+      const retrieved = yield* repo.getJob(id)
       expect(Option.isSome(retrieved)).toBe(true)
       expect(Option.getOrThrow(retrieved).status).toBe("processing")
 
-      yield* repo.deleteIssue(id)
+      yield* repo.deleteJob(id)
     }),
   )
 
-  it.live("updateIssueStatus with additional fields", () =>
+  it.live("updateJobStatus with additional fields", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id = uid() as IssueID
+      const id = uid() as JobID
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Field Update",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, initial: true },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: { initial: true },
       })
 
-      yield* repo.updateIssueStatus(id, "completed", {
+      yield* repo.updateJobStatus(id, "completed", {
         worktree_name: "my-worktree",
-        metadata: { updated: true },
+        payload: { updated: true },
       })
 
-      const retrieved = yield* repo.getIssue(id)
+      const retrieved = yield* repo.getJob(id)
       expect(Option.isSome(retrieved)).toBe(true)
       expect(Option.getOrThrow(retrieved).status).toBe("completed")
       expect(Option.getOrThrow(retrieved).worktree_name).toBe("my-worktree")
-      expect(Option.getOrThrow(retrieved).metadata).toEqual({ updated: true })
+      expect(Option.getOrThrow(retrieved).payload).toEqual(expect.objectContaining({ updated: true }))
 
-      yield* repo.deleteIssue(id)
+      yield* repo.deleteJob(id)
     }),
   )
 
-  it.live("insertWorkspace and getWorkspaceByIssueId", () =>
+  it.live("insertWorkspace and getWorkspaceByJobId", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
 
-      yield* repo.insertIssue({
-        id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+      yield* repo.insertJob({
+        id: jobId,
+        source: "github",
+        type: "issue",
         title: "Workspace Test",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: jobId,
         directory: "/tmp/test-workspace",
         branch: "feature/test",
         status: "creating",
       })
 
-      const retrieved = yield* repo.getWorkspaceByIssueId(issueId)
+      const retrieved = yield* repo.getWorkspaceByJobId(jobId)
       expect(Option.isSome(retrieved)).toBe(true)
       expect(Option.getOrThrow(retrieved).id).toBe(workspaceId)
-      expect(Option.getOrThrow(retrieved).issue_id).toBe(issueId)
+      expect(Option.getOrThrow(retrieved).job_id).toBe(jobId)
       expect(Option.getOrThrow(retrieved).directory).toBe("/tmp/test-workspace")
       expect(Option.getOrThrow(retrieved).branch).toBe("feature/test")
       expect(Option.getOrThrow(retrieved).status).toBe("creating")
       expect(typeof Option.getOrThrow(retrieved).time_created).toBe("number")
       expect(typeof Option.getOrThrow(retrieved).time_updated).toBe("number")
 
-      yield* repo.deleteIssue(issueId)
+      yield* repo.deleteJob(jobId)
     }),
   )
 
   it.live("updateWorkspaceStatus", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
 
-      yield* repo.insertIssue({
-        id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+      yield* repo.insertJob({
+        id: jobId,
+        source: "github",
+        type: "issue",
         title: "Workspace Status",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: jobId,
         directory: "/tmp/ws",
         branch: "main",
         status: "creating",
@@ -256,103 +243,100 @@ describe("SymphonyRepo", () => {
 
       yield* repo.updateWorkspaceStatus(workspaceId, "ready")
 
-      const retrieved = yield* repo.getWorkspaceByIssueId(issueId)
+      const retrieved = yield* repo.getWorkspaceByJobId(jobId)
       expect(Option.isSome(retrieved)).toBe(true)
       expect(Option.getOrThrow(retrieved).status).toBe("ready")
 
-      yield* repo.deleteIssue(issueId)
+      yield* repo.deleteJob(jobId)
     }),
   )
 
-  it.live("deleteIssue cascade", () =>
+  it.live("deleteJob cascade", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
 
-      yield* repo.insertIssue({
-        id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+      yield* repo.insertJob({
+        id: jobId,
+        source: "github",
+        type: "issue",
         title: "Cascade Test",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: jobId,
         directory: "/tmp/cascade",
         branch: "main",
         status: "ready",
       })
 
-      yield* repo.deleteIssue(issueId)
+      yield* repo.deleteJob(jobId)
 
-      const issue = yield* repo.getIssue(issueId)
-      expect(Option.isNone(issue)).toBe(true)
+      const job = yield* repo.getJob(jobId)
+      expect(Option.isNone(job)).toBe(true)
 
-      const workspace = yield* repo.getWorkspaceByIssueId(issueId)
+      const workspace = yield* repo.getWorkspaceByJobId(jobId)
       expect(Option.isNone(workspace)).toBe(true)
     }),
   )
 
-  it.live("listIssues without filter", () =>
+  it.live("listJobs without filter", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const id1 = uid() as IssueID
-      const id2 = uid() as IssueID
+      const id1 = uid() as JobID
+      const id2 = uid() as JobID
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: id1,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
-        title: "Issue A",
-        body: null,
+        source: "github",
+        type: "issue",
+        title: "Job A",
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: id2,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 2,
-        title: "Issue B",
-        body: null,
+        source: "github",
+        type: "issue",
+        title: "Job B",
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 2, body: null },
+        priority: 5,
         status: "completed",
         worktree_name: null,
-        metadata: {},
       })
 
-      const all = yield* repo.listIssues()
+      const all = yield* repo.listJobs()
       expect(all.length).toBeGreaterThanOrEqual(2)
       const ids = all.map((i) => i.id)
       expect(ids).toContain(id1)
       expect(ids).toContain(id2)
 
-      yield* repo.deleteIssue(id1)
-      yield* repo.deleteIssue(id2)
+      yield* repo.deleteJob(id1)
+      yield* repo.deleteJob(id2)
     }),
   )
 
-  it.live("getIssue returns None for missing ID", () =>
+  it.live("getJob returns None for missing ID", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const missing = yield* repo.getIssue(uid() as IssueID)
+      const missing = yield* repo.getJob(uid() as JobID)
       expect(Option.isNone(missing)).toBe(true)
     }),
   )
 
-  it.live("getWorkspaceByIssueId returns None for missing issue ID", () =>
+  it.live("getWorkspaceByJobId returns None for missing job ID", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const missing = yield* repo.getWorkspaceByIssueId(uid() as IssueID)
+      const missing = yield* repo.getWorkspaceByJobId(uid() as JobID)
       expect(Option.isNone(missing)).toBe(true)
     }),
   )
@@ -362,25 +346,24 @@ describe("SymphonyRepo", () => {
   it.live("insertPlan and getPlan", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Plan Test",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
 
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/plan-test",
         branch: "main",
         status: "ready",
@@ -409,24 +392,23 @@ describe("SymphonyRepo", () => {
   it.live("insertPlan with duplicate ID", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make("plan-dupe-test")
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Dupe Plan",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/plan-dupe",
         branch: "main",
         status: "ready",
@@ -444,24 +426,23 @@ describe("SymphonyRepo", () => {
   it.live("updatePlanStatus", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Plan Status",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/plan-status",
         branch: "main",
         status: "ready",
@@ -489,25 +470,24 @@ describe("SymphonyRepo", () => {
   it.live("insertTask and getTask with JSON arrays", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Task Test",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/task-test",
         branch: "main",
         status: "ready",
@@ -549,24 +529,23 @@ describe("SymphonyRepo", () => {
   it.live("listTasksByPlan", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "List Tasks",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/list-tasks",
         branch: "main",
         status: "ready",
@@ -587,25 +566,24 @@ describe("SymphonyRepo", () => {
   it.live("updateTaskStatus", () =>
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const issueId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* repo.insertIssue({
+      yield* repo.insertJob({
         id: issueId,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Task Update",
-        body: null,
+        payload: { repo_owner: "owner", repo_name: "repo", issue_number: 1, body: null, metadata: {} },
+        priority: 5,
         status: "pending",
         worktree_name: null,
-        metadata: {},
       })
       yield* repo.insertWorkspace({
         id: workspaceId,
-        issue_id: issueId,
+        job_id: issueId,
         directory: "/tmp/update-task",
         branch: "main",
         status: "ready",

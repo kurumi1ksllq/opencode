@@ -4,11 +4,11 @@ import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/
 import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { ConfigSymphony } from "./config/symphony"
-import { Issue, IssueID, IssueStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
+import { Job, JobID, JobStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
 import { SymphonyRepo } from "./repo"
 import type { TaskDefRow } from "./repo"
 import { Worker } from "./worker"
-import { decomposeIssue } from "./decompose"
+import { decomposeJobTask } from "./decompose"
 import { getReadyTasks } from "./plan"
 
 // ---------------------------------------------------------------------------
@@ -17,13 +17,12 @@ import { getReadyTasks } from "./plan"
 
 export interface Interface {
   readonly enqueue: (input: {
-    repo_owner: string
-    repo_name: string
-    issue_number: number
+    source: "github" | "scheduled" | "manual" | "system"
+    type: string
     title: string
-    body?: string
-    metadata?: Record<string, unknown>
-  }) => Effect.Effect<{ issue: Issue; workspace?: Workspace }, QueueError>
+    payload?: Record<string, unknown>
+    priority?: number
+  }) => Effect.Effect<{ job: Job; workspace?: Workspace }, QueueError>
   readonly processNext: () => Effect.Effect<void, QueueError>
   readonly startPolling: () => Effect.Effect<void>
   readonly stopPolling: () => Effect.Effect<void>
@@ -31,8 +30,8 @@ export interface Interface {
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Symphony") {}
 
-const isValidTransition = (from: IssueStatus, to: IssueStatus): boolean => {
-  const transitions: Record<IssueStatus, readonly IssueStatus[]> = {
+const isValidTransition = (from: JobStatus, to: JobStatus): boolean => {
+  const transitions: Record<JobStatus, readonly JobStatus[]> = {
     pending: ["queued"],
     queued: ["processing"],
     processing: ["completed", "failed"],
@@ -74,68 +73,65 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       let pollingFiber: Option.Option<Fiber.Fiber<void>> = Option.none()
 
       const enqueue = Effect.fn("Symphony.enqueue")(function* (input: {
-        repo_owner: string
-        repo_name: string
-        issue_number: number
+        source: "github" | "scheduled" | "manual" | "system"
+        type: string
         title: string
-        body?: string
-        metadata?: Record<string, unknown>
+        payload?: Record<string, unknown>
+        priority?: number
       }) {
-        const id = crypto.randomUUID() as IssueID
+        const id = crypto.randomUUID() as JobID
 
         const row = yield* repo
-          .insertIssue({
+          .insertJob({
             id,
-            repo_owner: input.repo_owner,
-            repo_name: input.repo_name,
-            issue_number: input.issue_number,
+            source: input.source,
+            type: input.type,
             title: input.title,
-            body: input.body ?? null,
-            status: "queued" as IssueStatus,
+            payload: input.payload ?? {},
+            priority: input.priority ?? 5,
+            status: "queued" as JobStatus,
             worktree_name: null,
-            metadata: input.metadata ?? {},
           })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
         return {
-          issue: new Issue({
+          job: new Job({
             id: row.id,
-            repo_owner: row.repo_owner,
-            repo_name: row.repo_name,
-            issue_number: row.issue_number,
+            source: row.source as "github" | "scheduled" | "manual" | "system",
+            type: row.type,
             title: row.title,
-            body: row.body,
-            status: row.status as IssueStatus,
+            payload: row.payload,
+            priority: row.priority,
+            status: row.status as JobStatus,
             worktree_name: row.worktree_name,
-            metadata: row.metadata,
           }),
         }
       })
 
       const processNext = Effect.fn("Symphony.processNext")(function* () {
-        const issues = yield* repo
-          .listIssues("queued" as IssueStatus)
+        const jobs = yield* repo
+          .listJobs("queued" as JobStatus)
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
-        if (issues.length === 0) return
+        if (jobs.length === 0) return
 
-        const issue = issues[0]
+        const job = jobs[0]
 
-        const currentStatus = issue.status as IssueStatus
-        const targetStatus: IssueStatus = "processing"
+        const currentStatus = job.status as JobStatus
+        const targetStatus: JobStatus = "processing"
         if (!isValidTransition(currentStatus, targetStatus)) {
           return yield* new QueueError({
-            message: `Cannot transition issue ${issue.id} from ${currentStatus} to processing`,
+            message: `Cannot transition job ${job.id} from ${currentStatus} to processing`,
           })
         }
 
         yield* repo
-          .updateIssueStatus(issue.id, targetStatus)
+          .updateJobStatus(job.id, targetStatus)
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
-        // Create git worktree for this issue
+        // Create git worktree for this job
         const worktreeInfo = yield* worktree
-          .makeWorktreeInfo({ name: `symphony-issue-${issue.issue_number}` })
+          .makeWorktreeInfo({ name: `symphony-job-${job.id.slice(0, 8)}` })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
         yield* worktree
@@ -147,20 +143,21 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         yield* repo
           .insertWorkspace({
             id: wsID,
-            issue_id: issue.id,
+            job_id: job.id,
             directory: worktreeInfo.directory,
             branch: worktreeInfo.branch ?? "",
             status: "ready" as WorkspaceStatus,
           })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
-        // --- Phase 3: Decompose issue into Plan + TaskDefs ---
-        const decomposed = decomposeIssue(issue.title, issue.body ?? undefined)
+        // --- Phase 3: Decompose job into Plan + TaskDefs ---
+        const body = typeof job.payload?.body === "string" ? job.payload.body : undefined
+        const decomposed = decomposeJobTask(job.title, body)
         if (decomposed.length === 0) return
 
         const planId = crypto.randomUUID() as PlanID
         yield* repo
-          .insertPlan({ id: planId, workspace_id: wsID, goal: issue.title })
+          .insertPlan({ id: planId, workspace_id: wsID, goal: job.title })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
         // Transition plan from "draft" to "active"

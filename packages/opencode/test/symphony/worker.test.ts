@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 import { SymphonyRepo } from "@/symphony/repo"
 import { Worker } from "@/symphony/worker"
-import { PlanID, TaskID, IssueID, WorkspaceID, WorkerError } from "@/symphony/schema"
+import { PlanID, TaskID, JobID, WorkspaceID, WorkerError } from "@/symphony/schema"
 import type { TaskDefRow } from "@/symphony/repo"
 import { testEffect } from "../lib/effect"
 import { Database } from "@/storage/db"
@@ -16,7 +16,7 @@ const truncate = Layer.effectDiscard(
     db.run("DELETE FROM symphony_taskdef")
     db.run("DELETE FROM symphony_plan")
     db.run("DELETE FROM symphony_workspace")
-    db.run("DELETE FROM symphony_issue")
+    db.run("DELETE FROM symphony_job")
   }),
 )
 
@@ -44,23 +44,22 @@ const it = testEffect(
 // Inline setup helpers
 // ---------------------------------------------------------------------------
 
-function insertBaseEntities(issueId: IssueID, workspaceId: WorkspaceID, planId: PlanID) {
+function insertBaseEntities(jobId: JobID, workspaceId: WorkspaceID, planId: PlanID) {
   return Effect.gen(function* () {
     const repo = yield* SymphonyRepo.Service
-    yield* repo.insertIssue({
-      id: issueId,
-      repo_owner: "test",
-      repo_name: "test",
-      issue_number: 1,
-      title: "Test Issue",
-      body: null,
+    yield* repo.insertJob({
+      id: jobId,
+      source: "github",
+      type: "issue",
+      title: "Test Job",
+      payload: { repo_owner: "test", repo_name: "test", issue_number: 1 },
+      priority: 5,
       status: "pending",
       worktree_name: null,
-      metadata: {},
     })
     yield* repo.insertWorkspace({
       id: workspaceId,
-      issue_id: issueId,
+      job_id: jobId,
       directory: "/tmp/test-ws",
       branch: "main",
       status: "ready",
@@ -79,12 +78,12 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.succeed("all good")
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Test Task" })
       yield* worker.executeTask(taskId)
 
@@ -100,12 +99,12 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.succeed("ready task done")
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Ready Task" })
       yield* repo.updateTaskStatus(taskId, "ready")
       yield* worker.executeTask(taskId)
@@ -122,12 +121,12 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.succeed("should not run")
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Already Done" })
       yield* repo.updateTaskStatus(taskId, "completed")
 
@@ -142,12 +141,12 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.fail(new WorkerError({ message: "boom" }))
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Failing Task" })
       yield* worker.executeTask(taskId)
 
@@ -163,13 +162,13 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.fail(new WorkerError({ message: "fail A" }))
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskIdA = TaskID.make(uid())
       const taskIdB = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskIdA, plan_id: planId, title: "Task A" })
       yield* repo.insertTask({
         id: taskIdB,
@@ -194,12 +193,12 @@ describe("SymphonyWorker", () => {
       mockExecute = () => Effect.succeed("done")
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Only Task" })
       yield* worker.executeTask(taskId)
 
@@ -223,12 +222,12 @@ describe("SymphonyWorker", () => {
     Effect.gen(function* () {
       const worker = yield* Worker.Service
       const repo = yield* SymphonyRepo.Service
-      const issueId = uid() as IssueID
+      const jobId = uid() as JobID
       const workspaceId = uid() as WorkspaceID
       const planId = PlanID.make(uid())
       const taskId = TaskID.make(uid())
 
-      yield* insertBaseEntities(issueId, workspaceId, planId)
+      yield* insertBaseEntities(jobId, workspaceId, planId)
       yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Return-title" })
 
       mockExecute = (task) => Effect.succeed(task.title)

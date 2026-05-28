@@ -2,7 +2,7 @@ import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
 import { Review } from "@/symphony/review"
 import { SymphonyRepo } from "@/symphony/repo"
-import { ReviewError, ReviewResult, TaskID, PlanID, IssueID, WorkspaceID } from "@/symphony/schema"
+import { ReviewError, ReviewResult, TaskID, PlanID, JobID, WorkspaceID } from "@/symphony/schema"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(Review.layer.pipe(Layer.provideMerge(SymphonyRepo.layer)))
@@ -11,24 +11,23 @@ const uid = () => crypto.randomUUID()
 
 const setupTask = (repo: SymphonyRepo.Interface, taskId: TaskID) =>
   Effect.gen(function* () {
-    const issueId = uid() as IssueID
+    const jobId = uid() as JobID
     const workspaceId = uid() as WorkspaceID
     const planId = PlanID.make(uid())
 
-    yield* repo.insertIssue({
-      id: issueId,
-      repo_owner: "owner",
-      repo_name: "repo",
-      issue_number: 1,
-      title: "Review Test Issue",
-      body: null,
+    yield* repo.insertJob({
+      id: jobId,
+      source: "github",
+      type: "issue",
+      title: "Review Test Job",
+      payload: { repo_owner: "test", repo_name: "test", issue_number: 1 },
+      priority: 5,
       status: "pending",
       worktree_name: null,
-      metadata: {},
     })
     yield* repo.insertWorkspace({
       id: workspaceId,
-      issue_id: issueId,
+      job_id: jobId,
       directory: "/tmp/review-test",
       branch: "main",
       status: "ready",

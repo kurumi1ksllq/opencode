@@ -1,23 +1,22 @@
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core"
 import { Timestamps } from "../storage/schema.sql"
-import type { IssueID, WorkspaceID, PlanID, TaskID } from "./schema"
+import type { JobID, WorkspaceID, PlanID, TaskID } from "./schema"
 
-export const IssueTable = sqliteTable("symphony_issue", {
-  id: text().$type<IssueID>().primaryKey(),
-  repo_owner: text().notNull(),
-  repo_name: text().notNull(),
-  issue_number: integer().notNull(),
+export const JobTable = sqliteTable("symphony_job", {
+  id: text().$type<JobID>().primaryKey(),
+  source: text().$type<"github" | "scheduled" | "manual" | "system">().notNull(),
+  type: text().notNull(),
   title: text().notNull(),
-  body: text(),
+  payload: text({ mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
+  priority: integer().notNull().default(5),
   status: text().notNull().$type<"pending" | "queued" | "processing" | "completed" | "failed">(),
   worktree_name: text(),
-  metadata: text({ mode: "json" }).$type<Record<string, unknown>>().notNull().default({}),
   ...Timestamps,
 })
 
 export const WorkspaceTable = sqliteTable("symphony_workspace", {
   id: text().$type<WorkspaceID>().primaryKey(),
-  issue_id: text().$type<IssueID>().notNull().references(() => IssueTable.id),
+  job_id: text().$type<JobID>().notNull().references(() => JobTable.id),
   directory: text().notNull(),
   branch: text().notNull(),
   status: text().notNull().$type<"creating" | "ready" | "disposed" | "failed">(),

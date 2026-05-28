@@ -1,19 +1,7 @@
 import { Schema } from "effect"
 
-export const IssueID = Schema.String.pipe(Schema.brand("IssueID"))
-export type IssueID = Schema.Schema.Type<typeof IssueID>
-
 export const WorkspaceID = Schema.String.pipe(Schema.brand("WorkspaceID"))
 export type WorkspaceID = Schema.Schema.Type<typeof WorkspaceID>
-
-export const IssueStatus = Schema.Union([
-  Schema.Literal("pending"),
-  Schema.Literal("queued"),
-  Schema.Literal("processing"),
-  Schema.Literal("completed"),
-  Schema.Literal("failed"),
-])
-export type IssueStatus = Schema.Schema.Type<typeof IssueStatus>
 
 export const WorkspaceStatus = Schema.Union([
   Schema.Literal("creating"),
@@ -23,21 +11,41 @@ export const WorkspaceStatus = Schema.Union([
 ])
 export type WorkspaceStatus = Schema.Schema.Type<typeof WorkspaceStatus>
 
-export class Issue extends Schema.Class<Issue>("Symphony.Issue")({
-  id: IssueID,
-  repo_owner: Schema.String,
-  repo_name: Schema.String,
-  issue_number: Schema.Number,
+// --- Job (source-agnostic queue item, replaces Issue) ---
+
+export const JobID = Schema.String.pipe(Schema.brand("JobID"))
+export type JobID = Schema.Schema.Type<typeof JobID>
+
+export const JobStatus = Schema.Union([
+  Schema.Literal("pending"),
+  Schema.Literal("queued"),
+  Schema.Literal("processing"),
+  Schema.Literal("completed"),
+  Schema.Literal("failed"),
+])
+export type JobStatus = Schema.Schema.Type<typeof JobStatus>
+
+const JobSource = Schema.Union([
+  Schema.Literal("github"),
+  Schema.Literal("scheduled"),
+  Schema.Literal("manual"),
+  Schema.Literal("system"),
+])
+
+export class Job extends Schema.Class<Job>("Symphony.Job")({
+  id: JobID,
+  source: JobSource,
+  type: Schema.String,
   title: Schema.String,
-  body: Schema.NullOr(Schema.String),
-  status: IssueStatus,
+  payload: Schema.Record(Schema.String, Schema.Unknown),
+  priority: Schema.Number,
+  status: JobStatus,
   worktree_name: Schema.NullOr(Schema.String),
-  metadata: Schema.Record(Schema.String, Schema.Unknown),
 }) {}
 
 export class Workspace extends Schema.Class<Workspace>("Symphony.Workspace")({
   id: WorkspaceID,
-  issue_id: IssueID,
+  job_id: JobID,
   directory: Schema.String,
   branch: Schema.String,
   status: WorkspaceStatus,

@@ -6,7 +6,7 @@ import { SymphonyRepo } from "@/symphony/repo"
 import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { Database } from "@/storage/db"
-import { IssueID } from "@/symphony/schema"
+import { JobID } from "@/symphony/schema"
 import { Worker } from "@/symphony/worker"
 import { testEffect } from "../lib/effect"
 
@@ -17,7 +17,7 @@ const truncate = Layer.effectDiscard(
   Effect.sync(() => {
     const db = Database.Client()
     db.run(`DELETE FROM symphony_workspace`)
-    db.run(`DELETE FROM symphony_issue`)
+    db.run(`DELETE FROM symphony_job`)
   }),
 )
 
@@ -72,42 +72,50 @@ describe("Symphony queue", () => {
     Effect.gen(function* () {
       const symphony = yield* Symphony.Service
       const repo = yield* SymphonyRepo.Service
-      const { issue } = yield* symphony.enqueue({
-        repo_owner: "test-owner",
-        repo_name: "test-repo",
-        issue_number: 42,
+      const { job } = yield* symphony.enqueue({
+        source: "github",
+        type: "issue",
         title: "Test Issue",
-        body: "Test body",
-        metadata: { source: "test" },
+        payload: {
+          repo_owner: "test-owner",
+          repo_name: "test-repo",
+          issue_number: 42,
+          body: "Test body",
+        },
+        priority: 5,
       })
 
       // Verify DB persistence
-      const all = yield* repo.listIssues()
-      expect(all.some((i) => i.id === issue.id)).toBe(true)
+      const all = yield* repo.listJobs()
+      expect(all.some((i) => i.id === job.id)).toBe(true)
 
-      expect(issue.status).toBe("queued")
-      expect(issue.repo_owner).toBe("test-owner")
-      expect(issue.repo_name).toBe("test-repo")
-      expect(issue.issue_number).toBe(42)
-      expect(issue.title).toBe("Test Issue")
-      expect(issue.body).toBe("Test body")
-      expect(issue.metadata).toEqual({ source: "test" })
+      expect(job.status).toBe("queued")
+      expect(job.payload.repo_owner).toBe("test-owner")
+      expect(job.payload.repo_name).toBe("test-repo")
+      expect(job.payload.issue_number).toBe(42)
+      expect(job.title).toBe("Test Issue")
+      expect(job.payload.body).toBe("Test body")
+      expect(job.source).toBe("github")
     }),
   )
 
   it.live("enqueue creates issue without optional fields", () =>
     Effect.gen(function* () {
       const symphony = yield* Symphony.Service
-      const { issue } = yield* symphony.enqueue({
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+      const { job } = yield* symphony.enqueue({
+        source: "github",
+        type: "issue",
         title: "Minimal",
+        payload: {
+          repo_owner: "owner",
+          repo_name: "repo",
+          issue_number: 1,
+        },
+        priority: 5,
       })
 
-      expect(issue.status).toBe("queued")
-      expect(issue.body).toBeNull()
-      expect(issue.metadata).toEqual({})
+      expect(job.status).toBe("queued")
+      expect(job.payload.body).toBeUndefined()
     }),
   )
 
@@ -117,15 +125,20 @@ describe("Symphony queue", () => {
       const repo = yield* SymphonyRepo.Service
 
       yield* symphony.enqueue({
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Process Me",
+        payload: {
+          repo_owner: "owner",
+          repo_name: "repo",
+          issue_number: 1,
+        },
+        priority: 5,
       })
 
       yield* symphony.processNext()
 
-      const all = yield* repo.listIssues()
+      const all = yield* repo.listJobs()
       expect(all.length).toBe(1)
       expect(all[0].status).toBe("processing")
     }),
@@ -137,21 +150,26 @@ describe("Symphony queue", () => {
       const repo = yield* SymphonyRepo.Service
 
       yield* symphony.enqueue({
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Workspace Test",
+        payload: {
+          repo_owner: "owner",
+          repo_name: "repo",
+          issue_number: 1,
+        },
+        priority: 5,
       })
 
       yield* symphony.processNext()
 
-      const all = yield* repo.listIssues()
+      const all = yield* repo.listJobs()
       expect(all.length).toBe(1)
 
-      const ws = yield* repo.getWorkspaceByIssueId(all[0].id as IssueID)
+      const ws = yield* repo.getWorkspaceByJobId(all[0].id as JobID)
       expect(Option.isSome(ws)).toBe(true)
       if (Option.isSome(ws)) {
-        expect(ws.value.issue_id).toBe(all[0].id)
+        expect(ws.value.job_id).toBe(all[0].id)
         expect(ws.value.status).toBe("ready")
         expect(ws.value.directory).toBe("/tmp/test-symphony-worktree")
         expect(ws.value.branch).toBe("feature/test")
@@ -171,22 +189,25 @@ describe("Symphony queue", () => {
       const symphony = yield* Symphony.Service
       const repo = yield* SymphonyRepo.Service
 
-      const id = uid() as IssueID
-      yield* repo.insertIssue({
+      const id = uid() as JobID
+      yield* repo.insertJob({
         id,
-        repo_owner: "owner",
-        repo_name: "repo",
-        issue_number: 1,
+        source: "github",
+        type: "issue",
         title: "Already Done",
-        body: null,
+        payload: {
+          repo_owner: "owner",
+          repo_name: "repo",
+          issue_number: 1,
+        },
+        priority: 5,
         status: "completed",
         worktree_name: null,
-        metadata: {},
       })
 
       yield* symphony.processNext()
 
-      const all = yield* repo.listIssues()
+      const all = yield* repo.listJobs()
       expect(all.length).toBe(1)
       expect(all[0].status).toBe("completed")
     }),

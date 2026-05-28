@@ -2,18 +2,18 @@ import { eq } from "drizzle-orm"
 import { Effect, Layer, Option, Context } from "effect"
 
 import { Database } from "@/storage/db"
-import { IssueTable, WorkspaceTable, PlanTable, TaskDefTable } from "./symphony.sql"
+import { JobTable, WorkspaceTable, PlanTable, TaskDefTable } from "./symphony.sql"
 import { SymphonyRepoError } from "./schema"
 import type {
-  IssueID,
+  JobID,
   WorkspaceID,
   PlanID,
   TaskID,
-  IssueStatus,
+  JobStatus,
   WorkspaceStatus,
 } from "./schema"
 
-export type IssueRow = (typeof IssueTable)["$inferSelect"]
+export type JobRow = (typeof JobTable)["$inferSelect"]
 export type WorkspaceRow = (typeof WorkspaceTable)["$inferSelect"]
 export type PlanRow = (typeof PlanTable)["$inferSelect"]
 export type TaskDefRow = (typeof TaskDefTable)["$inferSelect"]
@@ -22,34 +22,35 @@ type DbClient = Parameters<typeof Database.use>[0] extends (db: infer T) => unkn
 type DbTransactionCallback<A> = Parameters<typeof Database.transaction<A>>[0]
 
 export interface Interface {
-  readonly insertIssue: (input: {
-    id: IssueID
-    repo_owner: string
-    repo_name: string
-    issue_number: number
-    title: string
-    body: string | null
-    status: IssueStatus
-    worktree_name: string | null
-    metadata: Record<string, unknown>
-  }) => Effect.Effect<IssueRow, SymphonyRepoError>
-  readonly getIssue: (id: IssueID) => Effect.Effect<Option.Option<IssueRow>, SymphonyRepoError>
-  readonly listIssues: (status?: IssueStatus) => Effect.Effect<IssueRow[], SymphonyRepoError>
-  readonly updateIssueStatus: (
-    id: IssueID,
-    status: IssueStatus,
-    fields?: Partial<Pick<IssueRow, "worktree_name" | "metadata">>,
-  ) => Effect.Effect<void, SymphonyRepoError>
   readonly insertWorkspace: (input: {
     id: WorkspaceID
-    issue_id: IssueID
+    job_id: JobID
     directory: string
     branch: string
     status: WorkspaceStatus
   }) => Effect.Effect<WorkspaceRow, SymphonyRepoError>
-  readonly getWorkspaceByIssueId: (issueId: IssueID) => Effect.Effect<Option.Option<WorkspaceRow>, SymphonyRepoError>
+  readonly getWorkspaceByJobId: (jobId: JobID) => Effect.Effect<Option.Option<WorkspaceRow>, SymphonyRepoError>
   readonly updateWorkspaceStatus: (id: WorkspaceID, status: WorkspaceStatus) => Effect.Effect<void, SymphonyRepoError>
-  readonly deleteIssue: (id: IssueID) => Effect.Effect<void, SymphonyRepoError>
+
+  // Job methods (source-agnostic replacement for Issue)
+  readonly insertJob: (input: {
+    id: JobID
+    source: "github" | "scheduled" | "manual" | "system"
+    type: string
+    title: string
+    payload: Record<string, unknown>
+    priority: number
+    status: JobStatus
+    worktree_name: string | null
+  }) => Effect.Effect<JobRow, SymphonyRepoError>
+  readonly getJob: (id: JobID) => Effect.Effect<Option.Option<JobRow>, SymphonyRepoError>
+  readonly listJobs: (status?: string) => Effect.Effect<JobRow[], SymphonyRepoError>
+  readonly updateJobStatus: (
+    id: JobID,
+    status: string,
+    fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>,
+  ) => Effect.Effect<void, SymphonyRepoError>
+  readonly deleteJob: (id: JobID) => Effect.Effect<void, SymphonyRepoError>
 
   // Plan methods
   readonly insertPlan: (input: {
@@ -93,34 +94,6 @@ export const layer: Layer.Layer<Service> = Layer.effect(
         catch: (cause) => new SymphonyRepoError({ message: "Database operation failed", cause }),
       })
 
-    const insertIssue = Effect.fn("SymphonyRepo.insertIssue")((input) =>
-      tx((db) => {
-        db.insert(IssueTable).values(input).run()
-        return db.select().from(IssueTable).where(eq(IssueTable.id, input.id)).get()
-      }).pipe(Effect.map((row) => row as IssueRow)),
-    )
-
-    const getIssue = Effect.fn("SymphonyRepo.getIssue")((id: IssueID) =>
-      query((db) => db.select().from(IssueTable).where(eq(IssueTable.id, id)).get()).pipe(
-        Effect.map(Option.fromNullishOr),
-      ),
-    )
-
-    const listIssues = Effect.fn("SymphonyRepo.listIssues")((status?: IssueStatus) =>
-      query((db) => {
-        const base = db.select().from(IssueTable)
-        if (status) return base.where(eq(IssueTable.status, status)).all()
-        return base.all()
-      }),
-    )
-
-    const updateIssueStatus = Effect.fn("SymphonyRepo.updateIssueStatus")(
-      (id: IssueID, status: IssueStatus, fields?: Partial<Pick<IssueRow, "worktree_name" | "metadata">>) =>
-        tx((db) =>
-          db.update(IssueTable).set({ status, ...(fields ?? {}) }).where(eq(IssueTable.id, id)).run(),
-        ).pipe(Effect.asVoid),
-    )
-
     const insertWorkspace = Effect.fn("SymphonyRepo.insertWorkspace")((input) =>
       tx((db) => {
         db.insert(WorkspaceTable).values(input).run()
@@ -128,8 +101,8 @@ export const layer: Layer.Layer<Service> = Layer.effect(
       }).pipe(Effect.map((row) => row as WorkspaceRow)),
     )
 
-    const getWorkspaceByIssueId = Effect.fn("SymphonyRepo.getWorkspaceByIssueId")((issueId: IssueID) =>
-      query((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.issue_id, issueId)).get()).pipe(
+    const getWorkspaceByJobId = Effect.fn("SymphonyRepo.getWorkspaceByJobId")((jobId: JobID) =>
+      query((db) => db.select().from(WorkspaceTable).where(eq(WorkspaceTable.job_id, jobId)).get()).pipe(
         Effect.map(Option.fromNullishOr),
       ),
     )
@@ -140,10 +113,40 @@ export const layer: Layer.Layer<Service> = Layer.effect(
       ),
     )
 
-    const deleteIssue = Effect.fn("SymphonyRepo.deleteIssue")((id: IssueID) =>
+    // --- Job methods ---
+
+    const insertJob = Effect.fn("SymphonyRepo.insertJob")((input) =>
       tx((db) => {
-        db.delete(WorkspaceTable).where(eq(WorkspaceTable.issue_id, id)).run()
-        db.delete(IssueTable).where(eq(IssueTable.id, id)).run()
+        db.insert(JobTable).values(input).run()
+        return db.select().from(JobTable).where(eq(JobTable.id, input.id)).get()
+      }).pipe(Effect.map((row) => row as JobRow)),
+    )
+
+    const getJob = Effect.fn("SymphonyRepo.getJob")((id: JobID) =>
+      query((db) => db.select().from(JobTable).where(eq(JobTable.id, id)).get()).pipe(
+        Effect.map(Option.fromNullishOr),
+      ),
+    )
+
+    const listJobs = Effect.fn("SymphonyRepo.listJobs")((status?: string) =>
+      query((db) => {
+        const base = db.select().from(JobTable)
+        if (status) return base.where(eq(JobTable.status, status as any)).all()
+        return base.all()
+      }),
+    )
+
+    const updateJobStatus = Effect.fn("SymphonyRepo.updateJobStatus")(
+      (id: JobID, status: string, fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>) =>
+        tx((db) =>
+          db.update(JobTable).set({ status: status as any, ...(fields ?? {}) }).where(eq(JobTable.id, id)).run(),
+        ).pipe(Effect.asVoid),
+    )
+
+    const deleteJob = Effect.fn("SymphonyRepo.deleteJob")((id: JobID) =>
+      tx((db) => {
+        db.delete(WorkspaceTable).where(eq(WorkspaceTable.job_id, id)).run()
+        db.delete(JobTable).where(eq(JobTable.id, id)).run()
       }).pipe(Effect.asVoid),
     )
 
@@ -215,14 +218,14 @@ export const layer: Layer.Layer<Service> = Layer.effect(
     )
 
     return Service.of({
-      insertIssue,
-      getIssue,
-      listIssues,
-      updateIssueStatus,
       insertWorkspace,
-      getWorkspaceByIssueId,
+      getWorkspaceByJobId,
       updateWorkspaceStatus,
-      deleteIssue,
+      insertJob,
+      getJob,
+      listJobs,
+      updateJobStatus,
+      deleteJob,
       insertPlan,
       getPlan,
       updatePlanStatus,
