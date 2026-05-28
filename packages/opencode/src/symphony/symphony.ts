@@ -4,8 +4,12 @@ import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/
 import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { ConfigSymphony } from "./config/symphony"
-import { Issue, IssueID, IssueStatus, QueueError, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
+import { Issue, IssueID, IssueStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
 import { SymphonyRepo } from "./repo"
+import type { TaskDefRow } from "./repo"
+import { Worker } from "./worker"
+import { decomposeIssue } from "./decompose"
+import { getReadyTasks } from "./plan"
 
 // ---------------------------------------------------------------------------
 // Effect service
@@ -38,7 +42,25 @@ const isValidTransition = (from: IssueStatus, to: IssueStatus): boolean => {
   return transitions[from]?.includes(to) ?? false
 }
 
-export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service> =
+// Helper: convert DB row to Schema class for plan functions
+function rowToTaskDef(row: TaskDefRow): TaskDef {
+  return new TaskDef({
+    id: row.id,
+    plan_id: row.plan_id,
+    title: row.title,
+    description: row.description,
+    acceptance_criteria: JSON.parse(row.acceptance_criteria) as string[],
+    depends_on: JSON.parse(row.depends_on) as string[],
+    prompt_template: row.prompt_template,
+    status: row.status as TaskStatus,
+    result: row.result ?? undefined,
+    assigned_to: row.assigned_to ?? undefined,
+    created_at: row.time_created,
+    updated_at: row.time_updated,
+  })
+}
+
+export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service | Worker.Service> =
   Layer.effect(
     Service,
     Effect.gen(function* () {
@@ -47,6 +69,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       const http = yield* HttpClient.HttpClient
       const scope = yield* Scope.Scope
       const worktree = yield* Worktree.Service
+      const worker = yield* Worker.Service
 
       let pollingFiber: Option.Option<Fiber.Fiber<void>> = Option.none()
 
@@ -130,6 +153,54 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
             status: "ready" as WorkspaceStatus,
           })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        // --- Phase 3: Decompose issue into Plan + TaskDefs ---
+        const decomposed = decomposeIssue(issue.title, issue.body ?? undefined)
+        if (decomposed.length === 0) return
+
+        const planId = crypto.randomUUID() as PlanID
+        yield* repo
+          .insertPlan({ id: planId, workspace_id: wsID, goal: issue.title })
+          .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        // Transition plan from "draft" to "active"
+        yield* repo
+          .updatePlanStatus(planId, "active")
+          .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        // Insert all TaskDefs with sequential dependencies
+        const taskIds: TaskID[] = decomposed.map(() => crypto.randomUUID() as TaskID)
+        for (let i = 0; i < decomposed.length; i++) {
+          const td = decomposed[i]
+          const deps: string[] = i > 0 ? [taskIds[i - 1]] : []
+          yield* repo
+            .insertTask({
+              id: taskIds[i],
+              plan_id: planId,
+              title: td.title,
+              description: td.description,
+              acceptance_criteria: td.acceptance,
+              depends_on: deps,
+              prompt_template: td.description,
+            })
+            .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+        }
+
+        // Execute ready tasks via Worker
+        const allTaskRows = yield* repo
+          .listTasksByPlan(planId)
+          .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        const allTaskDefs = allTaskRows.map(rowToTaskDef)
+        const ready = getReadyTasks(allTaskDefs)
+
+        for (const task of ready) {
+          yield* worker.executeTask(task.id).pipe(
+            Effect.catch((err) =>
+              Effect.logWarning("Task execution failed", { taskId: task.id, error: err.message }),
+            ),
+          )
+        }
       })
 
       const startPolling = Effect.fn("Symphony.startPolling")(function* () {
@@ -174,10 +245,11 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
   )
 
 export const defaultLayer = layer.pipe(
-  Layer.provide(SymphonyRepo.layer),
   Layer.provide(FetchHttpClient.layer),
   Layer.provide(Worktree.defaultLayer),
+  Layer.provide(Worker.defaultLayer),
   Layer.provide(Config.defaultLayer),
+  Layer.provide(SymphonyRepo.layer),
 )
 
 export * as Symphony from "./symphony"

@@ -7,6 +7,7 @@ import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { Database } from "@/storage/db"
 import { IssueID } from "@/symphony/schema"
+import { Worker } from "@/symphony/worker"
 import { testEffect } from "../lib/effect"
 
 const uid = () => crypto.randomUUID()
@@ -31,6 +32,11 @@ const mockWorktreeLayer = Layer.mock(Worktree.Service)({
   createFromInfo: () => Effect.void,
 })
 
+// Mock Worker — executeTask succeeds silently
+const mockWorkerLayer = Layer.mock(Worker.Service)({
+  executeTask: () => Effect.void,
+})
+
 // Minimal mocks for services the Symphony layer requires but the tests don't exercise
 const mockConfigLayer = Layer.mock(Config.Service)({})
 const mockHttpLayer = Layer.succeed(
@@ -50,6 +56,7 @@ const it = testEffect(
       Layer.provide(mockWorktreeLayer),
       Layer.provide(mockConfigLayer),
       Layer.provide(mockHttpLayer),
+      Layer.provide(mockWorkerLayer),
     ),
     SymphonyRepo.layer,
     truncate,
