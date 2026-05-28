@@ -1,7 +1,7 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer, Option } from "effect"
 import { SymphonyRepo } from "@/symphony/repo"
-import { IssueID, WorkspaceID, SymphonyRepoError } from "@/symphony/schema"
+import { IssueID, WorkspaceID, PlanID, TaskID, SymphonyRepoError } from "@/symphony/schema"
 import { testEffect } from "../lib/effect"
 
 const it = testEffect(SymphonyRepo.layer)
@@ -353,6 +353,279 @@ describe("SymphonyRepo", () => {
     Effect.gen(function* () {
       const repo = yield* SymphonyRepo.Service
       const missing = yield* repo.getWorkspaceByIssueId(uid() as IssueID)
+      expect(Option.isNone(missing)).toBe(true)
+    }),
+  )
+
+  // --- Plan tests ---
+
+  it.live("insertPlan and getPlan", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make(uid())
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "Plan Test",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/plan-test",
+        branch: "main",
+        status: "ready",
+      })
+
+      const plan = yield* repo.insertPlan({
+        id: planId,
+        workspace_id: workspaceId,
+        goal: "Implement feature X",
+      })
+
+      expect(plan.id).toBe(planId)
+      expect(plan.workspace_id).toBe(workspaceId)
+      expect(plan.goal).toBe("Implement feature X")
+      expect(plan.status).toBe("draft")
+      expect(typeof plan.time_created).toBe("number")
+      expect(typeof plan.time_updated).toBe("number")
+
+      const retrieved = yield* repo.getPlan(planId)
+      expect(Option.isSome(retrieved)).toBe(true)
+      expect(Option.getOrThrow(retrieved).goal).toBe("Implement feature X")
+      expect(Option.getOrThrow(retrieved).status).toBe("draft")
+    }),
+  )
+
+  it.live("insertPlan with duplicate ID", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make("plan-dupe-test")
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "Dupe Plan",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/plan-dupe",
+        branch: "main",
+        status: "ready",
+      })
+      yield* repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "First" })
+
+      const error = yield* Effect.flip(
+        repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "Duplicate" }),
+      )
+      expect(error).toBeInstanceOf(SymphonyRepoError)
+      expect(error._tag).toBe("SymphonyRepoError")
+    }),
+  )
+
+  it.live("updatePlanStatus", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make(uid())
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "Plan Status",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/plan-status",
+        branch: "main",
+        status: "ready",
+      })
+      yield* repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "Status test" })
+
+      yield* repo.updatePlanStatus(planId, "active")
+
+      const retrieved = yield* repo.getPlan(planId)
+      expect(Option.isSome(retrieved)).toBe(true)
+      expect(Option.getOrThrow(retrieved).status).toBe("active")
+    }),
+  )
+
+  it.live("getPlan returns None for missing ID", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const missing = yield* repo.getPlan(PlanID.make("nonexistent-plan"))
+      expect(Option.isNone(missing)).toBe(true)
+    }),
+  )
+
+  // --- TaskDef tests ---
+
+  it.live("insertTask and getTask with JSON arrays", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make(uid())
+      const taskId = TaskID.make(uid())
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "Task Test",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/task-test",
+        branch: "main",
+        status: "ready",
+      })
+      yield* repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "Task plan" })
+
+      const criteria = ["Must handle errors", "Must be fast"]
+      const deps = ["task-prep", "task-setup"]
+
+      const task = yield* repo.insertTask({
+        id: taskId,
+        plan_id: planId,
+        title: "Implement X",
+        description: "Do the thing",
+        acceptance_criteria: criteria,
+        depends_on: deps,
+        prompt_template: "Write code for {{feature}}",
+      })
+
+      expect(task.id).toBe(taskId)
+      expect(task.plan_id).toBe(planId)
+      expect(task.title).toBe("Implement X")
+      expect(task.description).toBe("Do the thing")
+      expect(task.prompt_template).toBe("Write code for {{feature}}")
+      expect(task.status).toBe("pending")
+      // acceptance_criteria and depends_on stored as JSON strings in SQLite
+      expect(JSON.parse(task.acceptance_criteria)).toEqual(criteria)
+      expect(JSON.parse(task.depends_on)).toEqual(deps)
+      expect(typeof task.time_created).toBe("number")
+      expect(typeof task.time_updated).toBe("number")
+
+      const retrieved = yield* repo.getTask(taskId)
+      expect(Option.isSome(retrieved)).toBe(true)
+      expect(Option.getOrThrow(retrieved).title).toBe("Implement X")
+      expect(Option.getOrThrow(retrieved).status).toBe("pending")
+    }),
+  )
+
+  it.live("listTasksByPlan", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make(uid())
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "List Tasks",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/list-tasks",
+        branch: "main",
+        status: "ready",
+      })
+      yield* repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "List plan" })
+
+      yield* repo.insertTask({ id: TaskID.make(uid()), plan_id: planId, title: "Task A" })
+      yield* repo.insertTask({ id: TaskID.make(uid()), plan_id: planId, title: "Task B" })
+      yield* repo.insertTask({ id: TaskID.make(uid()), plan_id: planId, title: "Task C" })
+
+      const tasks = yield* repo.listTasksByPlan(planId)
+      expect(tasks.length).toBe(3)
+      const titles = tasks.map((t) => t.title).sort()
+      expect(titles).toEqual(["Task A", "Task B", "Task C"])
+    }),
+  )
+
+  it.live("updateTaskStatus", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const issueId = uid() as IssueID
+      const workspaceId = uid() as WorkspaceID
+      const planId = PlanID.make(uid())
+      const taskId = TaskID.make(uid())
+
+      yield* repo.insertIssue({
+        id: issueId,
+        repo_owner: "owner",
+        repo_name: "repo",
+        issue_number: 1,
+        title: "Task Update",
+        body: null,
+        status: "pending",
+        worktree_name: null,
+        metadata: {},
+      })
+      yield* repo.insertWorkspace({
+        id: workspaceId,
+        issue_id: issueId,
+        directory: "/tmp/update-task",
+        branch: "main",
+        status: "ready",
+      })
+      yield* repo.insertPlan({ id: planId, workspace_id: workspaceId, goal: "Update plan" })
+
+      yield* repo.insertTask({ id: taskId, plan_id: planId, title: "Updatable Task" })
+
+      yield* repo.updateTaskStatus(taskId, "completed")
+
+      const retrieved = yield* repo.getTask(taskId)
+      expect(Option.isSome(retrieved)).toBe(true)
+      expect(Option.getOrThrow(retrieved).status).toBe("completed")
+    }),
+  )
+
+  it.live("getTask returns None for missing ID", () =>
+    Effect.gen(function* () {
+      const repo = yield* SymphonyRepo.Service
+      const missing = yield* repo.getTask(TaskID.make("nonexistent-task"))
       expect(Option.isNone(missing)).toBe(true)
     }),
   )

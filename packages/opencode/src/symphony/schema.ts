@@ -58,4 +58,65 @@ export class WorkspaceError extends Schema.TaggedErrorClass<WorkspaceError>()("W
   cause: Schema.optional(Schema.Defect),
 }) {}
 
+// --- Plan & TaskDef ---
+
+export const PlanID = Schema.String.pipe(Schema.brand("PlanID"))
+export type PlanID = Schema.Schema.Type<typeof PlanID>
+
+export const TaskID = Schema.String.pipe(Schema.brand("TaskID"))
+export type TaskID = Schema.Schema.Type<typeof TaskID>
+
+export const PlanStatus = Schema.Union([
+  Schema.Literal("draft"),
+  Schema.Literal("active"),
+  Schema.Literal("paused"),
+  Schema.Literal("completed"),
+  Schema.Literal("failed"),
+])
+export type PlanStatus = Schema.Schema.Type<typeof PlanStatus>
+
+export const TaskStatus = Schema.Union([
+  Schema.Literal("pending"),
+  Schema.Literal("ready"),
+  Schema.Literal("in_progress"),
+  Schema.Literal("completed"),
+  Schema.Literal("failed"),
+  Schema.Literal("skipped"),
+])
+export type TaskStatus = Schema.Schema.Type<typeof TaskStatus>
+
+export class Plan extends Schema.Class<Plan>("SymphonySchema.Plan")({
+  id: PlanID,
+  workspace_id: Schema.String,
+  goal: Schema.String,
+  status: PlanStatus,
+  created_at: Schema.Number,
+  updated_at: Schema.Number,
+}) {}
+
+export class TaskDef extends Schema.Class<TaskDef>("SymphonySchema.TaskDef")({
+  id: TaskID,
+  plan_id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  acceptance_criteria: Schema.Array(Schema.String),
+  depends_on: Schema.Array(Schema.String),
+  prompt_template: Schema.String,
+  status: TaskStatus,
+  result: Schema.optional(Schema.String),
+  assigned_to: Schema.optional(Schema.String),
+  created_at: Schema.Number,
+  updated_at: Schema.Number,
+}) {}
+
+export class PlanValidationError extends Schema.TaggedErrorClass<PlanValidationError>()("SymphonySchema.PlanValidationError", {
+  message: Schema.String,
+  cycles: Schema.optional(Schema.Array(Schema.Array(Schema.String))),
+  missingRefs: Schema.optional(Schema.Array(Schema.String)),
+}) {}
+
+export class DecomposeError extends Schema.TaggedErrorClass<DecomposeError>()("SymphonySchema.DecomposeError", {
+  message: Schema.String,
+}) {}
+
 export * as SymphonySchema from "./schema"
