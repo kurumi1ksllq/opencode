@@ -1,6 +1,7 @@
 import { Context, Duration, Effect, Fiber, Layer, Option, Schedule, Scope } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
 
+import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { ConfigSymphony } from "./config/symphony"
 import { Issue, IssueID, IssueStatus, QueueError, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
@@ -37,7 +38,7 @@ const isValidTransition = (from: IssueStatus, to: IssueStatus): boolean => {
   return transitions[from]?.includes(to) ?? false
 }
 
-export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient> =
+export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service> =
   Layer.effect(
     Service,
     Effect.gen(function* () {
@@ -45,6 +46,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       const config = yield* Config.Service
       const http = yield* HttpClient.HttpClient
       const scope = yield* Scope.Scope
+      const worktree = yield* Worktree.Service
 
       let pollingFiber: Option.Option<Fiber.Fiber<void>> = Option.none()
 
@@ -108,16 +110,24 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
           .updateIssueStatus(issue.id, targetStatus)
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
 
-        // Create workspace stub
-        // TODO: Phase 2 - use Worktree service to create actual git worktree
+        // Create git worktree for this issue
+        const worktreeInfo = yield* worktree
+          .makeWorktreeInfo({ name: `symphony-issue-${issue.issue_number}` })
+          .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        yield* worktree
+          .createFromInfo(worktreeInfo)
+          .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
+
+        // Record workspace in database
         const wsID = crypto.randomUUID() as WorkspaceID
         yield* repo
           .insertWorkspace({
             id: wsID,
             issue_id: issue.id,
-            directory: "",
-            branch: "",
-            status: "creating" as WorkspaceStatus,
+            directory: worktreeInfo.directory,
+            branch: worktreeInfo.branch ?? "",
+            status: "ready" as WorkspaceStatus,
           })
           .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
       })
@@ -166,6 +176,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 export const defaultLayer = layer.pipe(
   Layer.provide(SymphonyRepo.layer),
   Layer.provide(FetchHttpClient.layer),
+  Layer.provide(Worktree.defaultLayer),
   Layer.provide(Config.defaultLayer),
 )
 
