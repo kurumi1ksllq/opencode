@@ -97,7 +97,7 @@ export const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(fu
     const hint = available.length ? ` Available agents: ${available.join(", ")}` : ""
     const error = new NamedError.Unknown({ message: `Agent not found: "${agentName}".${hint}` })
     yield* bus.publish(Session.Event.Error, { sessionID: input.sessionID, error: error.toObject() })
-    throw error
+    return yield* Effect.fail(error)
   }
 
   const current = Database.use((db) =>
@@ -207,7 +207,7 @@ export const createUserMessage = Effect.fn("SessionPrompt.createUserMessage")(fu
             const exit = yield* mcp.readResource(clientName, uri).pipe(Effect.exit)
             if (Exit.isSuccess(exit)) {
               const content = exit.value as any
-              if (!content) throw new Error(`Resource not found: ${clientName}/${uri}`)
+              if (!content) return yield* Effect.die(new Error(`Resource not found: ${clientName}/${uri}`))
               const items = Array.isArray(content.contents) ? (content.contents as any[]) : [content.contents]
           for (const c of items) {
             if ("text" in c && c.text) {
