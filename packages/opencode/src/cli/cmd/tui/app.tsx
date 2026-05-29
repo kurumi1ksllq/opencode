@@ -37,6 +37,7 @@ import { DialogModel } from "@tui/component/dialog-model"
 import { useConnected } from "@tui/component/use-connected"
 import { DialogMcp } from "@tui/component/dialog-mcp"
 import { DialogStatus } from "@tui/component/dialog-status"
+import { DialogSymphony } from "@tui/component/dialog-symphony"
 import { DialogThemeList } from "@tui/component/dialog-theme-list"
 import { DialogHelp } from "./ui/dialog-help"
 import { DialogAgent } from "@tui/component/dialog-agent"
@@ -645,6 +646,15 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
         slashName: "status",
         run: () => {
           dialog.replace(() => <DialogStatus />)
+        },
+        category: "System",
+      },
+      {
+        name: "symphony.show",
+        title: "View symphony queue",
+        slashName: "symphony",
+        run: () => {
+          dialog.replace(() => <DialogSymphony />)
         },
         category: "System",
       },
