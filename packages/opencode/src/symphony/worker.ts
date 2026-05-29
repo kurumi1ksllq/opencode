@@ -1,4 +1,8 @@
 import { Context, Effect, Layer, Option } from "effect"
+import { LLM, LLMClient, type LLMError } from "@opencode-ai/llm"
+import { OpenAI } from "@opencode-ai/llm/providers"
+import { RequestExecutor } from "@opencode-ai/llm/route"
+import { Config } from "@/config/config"
 import { WorkerError, SymphonyRepoError, type TaskID, type TaskStatus, type PlanID, TaskDef } from "./schema"
 import type { TaskDefRow } from "./repo"
 import { SymphonyRepo } from "./repo"
@@ -19,6 +23,38 @@ export const defaultTaskExecutor = Layer.succeed(
   TaskExecutor,
   TaskExecutor.of({
     execute: (task) => Effect.succeed(`[mock] Task "${task.title}" completed`),
+  }),
+)
+
+// Real LLM-based executor — uses opencode's LLM infrastructure
+export const llmTaskExecutor = Layer.effect(
+  TaskExecutor,
+  Effect.gen(function* () {
+    const config = yield* Config.Service
+
+    const execute = Effect.fn("TaskExecutor.execute")(function* (task: TaskDefRow) {
+      const apiKey = process.env.OPENAI_API_KEY
+      if (!apiKey) {
+        return yield* Effect.fail(new WorkerError({ message: "No OPENAI_API_KEY environment variable set" }))
+      }
+
+      const model = OpenAI.configure({ apiKey }).responses("gpt-4o-mini")
+
+      const request = LLM.request({
+        model,
+        system: task.prompt_template || "Execute the following task. Return a complete and actionable result.",
+        prompt: `# ${task.title}\n\n${task.description}`,
+        generation: { maxTokens: 4096 },
+      })
+
+      const response = yield* LLMClient.generate(request).pipe(
+        Effect.mapError((cause: LLMError) => new WorkerError({ message: cause.message, cause })),
+      )
+
+      return response.text
+    })
+
+    return TaskExecutor.of({ execute })
   }),
 )
 
@@ -123,6 +159,14 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | TaskExecu
   }),
 )
 
-export const defaultLayer = layer.pipe(Layer.provide(defaultTaskExecutor))
+export const defaultLayer = layer.pipe(
+  Layer.provide(
+    llmTaskExecutor.pipe(
+      Layer.provide(LLMClient.layer.pipe(
+        Layer.provide(RequestExecutor.defaultLayer),
+      )),
+    ),
+  ),
+)
 
 export * as Worker from "./worker"
