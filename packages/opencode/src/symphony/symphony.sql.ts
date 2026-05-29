@@ -51,6 +51,7 @@ export const TaskDefTable = sqliteTable(
     status: text().notNull().default("pending"),
     result: text(),
     assigned_to: text(),
+    retry_count: integer().notNull().default(0),
     ...Timestamps,
   },
   (table) => ({

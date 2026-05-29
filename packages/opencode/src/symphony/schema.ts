@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 export const WorkspaceID = Schema.String.pipe(Schema.brand("WorkspaceID"))
 export type WorkspaceID = Schema.Schema.Type<typeof WorkspaceID>
@@ -113,6 +113,7 @@ export class TaskDef extends Schema.Class<TaskDef>("SymphonySchema.TaskDef")({
   status: TaskStatus,
   result: Schema.optional(Schema.String),
   assigned_to: Schema.optional(Schema.String),
+  retry_count: Schema.optional(Schema.Number).pipe(Schema.withDecodingDefaultType(Effect.succeed(0))),
   created_at: Schema.Number,
   updated_at: Schema.Number,
 }) {}

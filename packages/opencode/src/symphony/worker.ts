@@ -8,6 +8,8 @@ import type { TaskDefRow } from "./repo"
 import { SymphonyRepo } from "./repo"
 import { isPlanComplete, markFailedDependents } from "./plan"
 
+const MAX_RETRIES = 3
+
 // ---------------------------------------------------------------------------
 // TaskExecutor (pluggable execution strategy)
 // ---------------------------------------------------------------------------
@@ -120,17 +122,21 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | TaskExecu
       const resultOrNull: string | null = yield* executor.execute(task).pipe(
         Effect.map((r) => r as string | null),
         Effect.catch((err) =>
-          repo.updateTaskStatus(taskId, "failed", { result: err.message }).pipe(
-            Effect.andThen(repo.listTasksByPlan(task.plan_id as PlanID)),
-            Effect.flatMap((tasks) => {
-              const updated = markFailedDependents(tasks.map(rowToTaskDef), taskId)
-              const skipped = updated.filter((t) => t.status === "skipped")
-              if (skipped.length === 0) return Effect.succeed(null as string | null)
-              return Effect.all(skipped.map((t) => repo.updateTaskStatus(t.id, "skipped"))).pipe(
-                Effect.as(null as string | null),
+          task.retry_count >= MAX_RETRIES
+            ? repo.updateTaskStatus(taskId, "failed", { result: err.message }).pipe(
+                Effect.andThen(repo.listTasksByPlan(task.plan_id as PlanID)),
+                Effect.flatMap((tasks) => {
+                  const updated = markFailedDependents(tasks.map(rowToTaskDef), taskId)
+                  const skipped = updated.filter((t) => t.status === "skipped")
+                  if (skipped.length === 0) return Effect.succeed(null as string | null)
+                  return Effect.all(skipped.map((t) => repo.updateTaskStatus(t.id, "skipped"))).pipe(
+                    Effect.as(null as string | null),
+                  )
+                }),
               )
-            }),
-          ),
+            : repo.updateTaskStatus(taskId, "pending", { retry_count: task.retry_count + 1 }).pipe(
+                Effect.as(null as string | null),
+              ),
         ),
       )
 

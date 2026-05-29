@@ -136,7 +136,7 @@ describe("SymphonyWorker", () => {
     }),
   )
 
-  it.live("4. Executor failure → task marked failed", () =>
+  it.live("4. Executor failure → task retried (pending) when retry_count < MAX", () =>
     Effect.gen(function* () {
       mockExecute = () => Effect.fail(new WorkerError({ message: "boom" }))
       const worker = yield* Worker.Service
@@ -152,12 +152,12 @@ describe("SymphonyWorker", () => {
 
       const taskOpt = yield* repo.getTask(taskId)
       const task = Option.getOrThrow(taskOpt)
-      expect(task.status).toBe("failed")
-      expect(task.result).toBe("boom")
+      expect(task.status).toBe("pending")
+      expect(task.retry_count).toBe(1)
     }),
   )
 
-  it.live("5. Failed task marks dependents skipped", () =>
+  it.live("5. Failed task with exhausted retries marks dependents skipped", () =>
     Effect.gen(function* () {
       mockExecute = () => Effect.fail(new WorkerError({ message: "fail A" }))
       const worker = yield* Worker.Service
@@ -177,6 +177,8 @@ describe("SymphonyWorker", () => {
         depends_on: [taskIdA],
       })
 
+      // Pre-set retry_count to MAX_RETRIES so the task fails immediately
+      yield* repo.updateTaskStatus(taskIdA, "pending", { retry_count: 3 })
       yield* worker.executeTask(taskIdA)
 
       const taskAOpt = yield* repo.getTask(taskIdA)
