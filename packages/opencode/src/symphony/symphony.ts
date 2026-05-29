@@ -390,16 +390,16 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 
         const interval = info.symphony.github?.polling_interval_seconds ?? 30
 
-        const fiber = yield* Effect.all([
-          pollIssues().pipe(
-            Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
-            Effect.asVoid,
+        const fiber = yield* (pollIssues().pipe(
+          Effect.flatMap(() =>
+            processNext().pipe(
+              Effect.catch((err) => Effect.logWarning("processNext failed", { error: err.message })),
+            ),
           ),
-          pollScheduled().pipe(
-            Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
-            Effect.asVoid,
-          ),
-        ]).pipe(Effect.asVoid, Effect.forkIn(scope))
+          Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
+          Effect.asVoid,
+          Effect.forkIn(scope),
+        ))
 
         pollingFiber = Option.some(fiber)
       })
