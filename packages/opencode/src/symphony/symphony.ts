@@ -223,11 +223,15 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       })
 
       const processRepoIssues = Effect.fn("Symphony.processRepoIssues")(
-        (owner: string, name: string, repoStr: string) =>
+        (owner: string, name: string, repoStr: string, token?: string) =>
           Effect.gen(function* () {
-            const request = HttpClientRequest.get(
+            let request = HttpClientRequest.get(
               `https://api.github.com/repos/${owner}/${name}/issues?state=open&per_page=10&sort=created&direction=desc`,
             ).pipe(HttpClientRequest.acceptJson)
+
+            if (token) {
+              request = request.pipe(HttpClientRequest.bearerToken(token))
+            }
 
             const httpOk = HttpClient.filterStatusOk(http)
             const response = yield* httpOk.execute(request)
@@ -275,6 +279,8 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         const repos = symphonyConfig.github?.repos ?? []
         if (repos.length === 0) return
 
+        const token = symphonyConfig.github?.token ?? process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? undefined
+
         for (const repoStr of repos) {
           const parts = repoStr.split("/")
           if (parts.length !== 2) {
@@ -284,7 +290,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 
           const [owner, name] = parts
 
-          yield* processRepoIssues(owner, name, repoStr).pipe(
+          yield* processRepoIssues(owner, name, repoStr, token).pipe(
             Effect.catch((err) =>
               Effect.logWarning("GitHub polling error for repo", {
                 repo: repoStr,

@@ -6,6 +6,7 @@ export const Info = Schema.Struct({
   ),
   github: Schema.optional(
     Schema.Struct({
+      token: Schema.optional(Schema.String),
       polling_interval_seconds: Schema.optional(Schema.Number).pipe(
         Schema.withDecodingDefaultType(Effect.succeed(30)),
       ),
