@@ -1,11 +1,16 @@
 import { describe, expect } from "bun:test"
 import { Effect, Layer } from "effect"
-import { Review } from "@/symphony/review"
+import { Review, Reviewer } from "@/symphony/review"
 import { SymphonyRepo } from "@/symphony/repo"
 import { ReviewError, ReviewResult, TaskID, PlanID, JobID, WorkspaceID } from "@/symphony/schema"
 import { testEffect } from "../lib/effect"
 
-const it = testEffect(Review.layer.pipe(Layer.provideMerge(SymphonyRepo.layer)))
+const mockReviewer = Layer.succeed(Reviewer, Reviewer.of({
+  review: (title, description, acceptanceCriteria, result) =>
+    Effect.succeed(new ReviewResult({ passed: true })),
+}))
+
+const it = testEffect(Review.layer.pipe(Layer.provideMerge(SymphonyRepo.layer), Layer.provideMerge(mockReviewer)))
 
 const uid = () => crypto.randomUUID()
 
