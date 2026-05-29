@@ -85,7 +85,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       const worker = yield* Worker.Service
       const review = yield* Review.Service
 
-      let pollingFiber: Option.Option<Fiber.Fiber<void>> = Option.none()
+      let pollingFiber: Option.Option<Fiber.Fiber<void, never>> = Option.none()
 
       const enqueue = Effect.fn("Symphony.enqueue")(function* (input: {
         source: "github" | "scheduled" | "manual" | "system"
@@ -353,6 +353,35 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         }
       })
 
+      const pollScheduled = Effect.fn("Symphony.pollScheduled")(function* () {
+        const info = yield* config.get()
+        const scheduled = info.symphony?.scheduled ?? []
+        if (scheduled.length === 0) return
+
+        for (const task of scheduled) {
+          yield* enqueue({
+            source: "scheduled",
+            type: task.type,
+            title: task.title,
+            payload: task.payload ?? {},
+            priority: task.priority ?? 5,
+          }).pipe(
+            Effect.catch((err) =>
+              Effect.logWarning("Failed to enqueue scheduled task", {
+                task: task.task_name,
+                error: err.message,
+              }),
+            ),
+          )
+
+          yield* Effect.logInfo("Enqueued scheduled task", {
+            task: task.task_name,
+            title: task.title,
+            type: task.type,
+          })
+        }
+      })
+
       const startPolling = Effect.fn("Symphony.startPolling")(function* () {
         if (Option.isSome(pollingFiber)) return
 
@@ -361,11 +390,16 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 
         const interval = info.symphony.github?.polling_interval_seconds ?? 30
 
-        const fiber = yield* pollIssues().pipe(
-          Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
-          Effect.asVoid,
-          Effect.forkIn(scope),
-        )
+        const fiber = yield* Effect.all([
+          pollIssues().pipe(
+            Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
+            Effect.asVoid,
+          ),
+          pollScheduled().pipe(
+            Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
+            Effect.asVoid,
+          ),
+        ]).pipe(Effect.asVoid, Effect.forkIn(scope))
 
         pollingFiber = Option.some(fiber)
       })

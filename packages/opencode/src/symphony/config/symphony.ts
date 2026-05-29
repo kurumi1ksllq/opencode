@@ -17,6 +17,29 @@ export const Info = Schema.Struct({
   ).pipe(
     Schema.withDecodingDefaultType(Effect.succeed({ polling_interval_seconds: 30, repos: [] })),
   ),
+  scheduled: Schema.optional(
+    Schema.mutable(
+      Schema.Array(
+        Schema.Struct({
+          task_name: Schema.String,
+          title: Schema.String,
+          type: Schema.String,
+          payload: Schema.optional(Schema.Record(Schema.String, Schema.Unknown)),
+          interval_seconds: Schema.Number,
+          priority: Schema.optional(Schema.Number),
+        }),
+      ),
+    ),
+  ).pipe(
+    Schema.withDecodingDefaultType(Effect.succeed<Array<{
+      task_name: string
+      title: string
+      type: string
+      payload?: Record<string, unknown>
+      interval_seconds: number
+      priority?: number
+    }>>([])),
+  ),
   workers: Schema.optional(
     Schema.Struct({
       max_concurrent: Schema.optional(Schema.Number).pipe(
