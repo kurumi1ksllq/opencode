@@ -272,7 +272,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
           }
 
           yield* repo
-            .updateJobStatus(job.id, "completed")
+            .updateJobStatus(job.id, "completed" as JobStatus)
             .pipe(Effect.mapError((cause) => new QueueError({ message: cause.message, cause })))
         }
       })
@@ -443,6 +443,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 
       const postJson = (url: string, body: unknown, token?: string) => {
         let req = HttpClientRequest.post(url).pipe(HttpClientRequest.acceptJson)
+        if (body !== undefined) req = req.pipe(HttpClientRequest.bodyJsonUnsafe(body))
         if (token) req = req.pipe(HttpClientRequest.bearerToken(token))
         return HttpClient.filterStatusOk(http).execute(req)
       }

@@ -44,10 +44,10 @@ export interface Interface {
     worktree_name: string | null
   }) => Effect.Effect<JobRow, SymphonyRepoError>
   readonly getJob: (id: JobID) => Effect.Effect<Option.Option<JobRow>, SymphonyRepoError>
-  readonly listJobs: (status?: string) => Effect.Effect<JobRow[], SymphonyRepoError>
+  readonly listJobs: (status?: JobStatus) => Effect.Effect<JobRow[], SymphonyRepoError>
   readonly updateJobStatus: (
     id: JobID,
-    status: string,
+    status: JobStatus,
     fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>,
   ) => Effect.Effect<void, SymphonyRepoError>
   readonly findJobByIssue: (input: {
@@ -133,25 +133,25 @@ export const layer: Layer.Layer<Service> = Layer.effect(
       ),
     )
 
-    const listJobs = Effect.fn("SymphonyRepo.listJobs")((status?: string) =>
+    const listJobs = Effect.fn("SymphonyRepo.listJobs")((status?: JobStatus) =>
       query((db) => {
         const base = db.select().from(JobTable)
-        if (status) return base.where(eq(JobTable.status, status as any)).all()
+        if (status) return base.where(eq(JobTable.status, status)).all()
         return base.all()
       }),
     )
 
     const updateJobStatus = Effect.fn("SymphonyRepo.updateJobStatus")(
-      (id: JobID, status: string, fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>) =>
+      (id: JobID, status: JobStatus, fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>) =>
         tx((db) =>
-          db.update(JobTable).set({ status: status as any, ...(fields ?? {}) }).where(eq(JobTable.id, id)).run(),
+          db.update(JobTable).set({ status, ...(fields ?? {}) }).where(eq(JobTable.id, id)).run(),
         ).pipe(Effect.asVoid),
     )
 
     const findJobByIssue = Effect.fn("SymphonyRepo.findJobByIssue")(
       (input: { repo_owner: string; repo_name: string; issue_number: number }) =>
         query((db) =>
-          db.select().from(JobTable).where(eq(JobTable.source, "github" as any)).all(),
+          db.select().from(JobTable).where(eq(JobTable.source, "github")).all(),
         ).pipe(
           Effect.map((rows) =>
             Option.fromNullishOr(
