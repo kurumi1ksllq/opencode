@@ -258,7 +258,14 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         }
       })
 
-      return Service.of({ enqueue, processNext, startPolling, stopPolling })
+      const svc = Service.of({ enqueue, processNext, startPolling, stopPolling })
+
+      // Auto-start polling on layer initialization.
+      // Checks config.symphony.enabled — if disabled, returns immediately.
+      // Forked into the layer scope so it's cleaned up on app shutdown.
+      yield* startPolling().pipe(Effect.forkIn(scope))
+
+      return svc
     }),
   )
 
