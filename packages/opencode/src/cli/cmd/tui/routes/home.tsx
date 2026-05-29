@@ -9,6 +9,7 @@ import { usePromptRef } from "../context/prompt"
 import { useLocal } from "../context/local"
 import { TuiPluginRuntime } from "@/cli/cmd/tui/plugin/runtime"
 import { useEditorContext } from "@tui/context/editor"
+import { SymphonyQueue } from "../component/symphony-queue"
 
 let once = false
 const placeholder = {
@@ -72,13 +73,16 @@ export function Home() {
             <Prompt ref={bind} right={<TuiPluginRuntime.Slot name="home_prompt_right" />} placeholders={placeholder} />
           </TuiPluginRuntime.Slot>
         </box>
-        <TuiPluginRuntime.Slot name="home_bottom" />
-        <box flexGrow={1} minHeight={0} />
-        <Toast />
-      </box>
-      <box width="100%" flexShrink={0}>
-        <TuiPluginRuntime.Slot name="home_footer" mode="single_winner" />
-      </box>
+      <TuiPluginRuntime.Slot name="home_bottom" />
+      <box flexGrow={1} minHeight={0} />
+      <Toast />
+    </box>
+    <box width="100%" flexShrink={0}>
+      <SymphonyQueue />
+    </box>
+    <box width="100%" flexShrink={0}>
+      <TuiPluginRuntime.Slot name="home_footer" mode="single_winner" />
+    </box>
     </>
   )
 }

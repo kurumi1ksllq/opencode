@@ -16,6 +16,17 @@ import { getReadyTasks } from "./plan"
 // Effect service
 // ---------------------------------------------------------------------------
 
+export interface QueueStats {
+  readonly queued: number
+  readonly processing: number
+  readonly completed: number
+  readonly failed: number
+  readonly total: number
+  readonly polling_active: boolean
+  readonly repos: string[]
+  readonly enabled: boolean
+}
+
 export interface Interface {
   readonly enqueue: (input: {
     source: "github" | "scheduled" | "manual" | "system"
@@ -28,6 +39,7 @@ export interface Interface {
   readonly pollIssues: () => Effect.Effect<void>
   readonly startPolling: () => Effect.Effect<void>
   readonly stopPolling: () => Effect.Effect<void>
+  readonly getQueueStats: () => Effect.Effect<QueueStats, QueueError>
 }
 
 export class Service extends Context.Service<Service, Interface>()("@opencode/Symphony") {}
@@ -325,7 +337,30 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         }
       })
 
-      const svc = Service.of({ enqueue, processNext, pollIssues, startPolling, stopPolling })
+      const getQueueStats = Effect.fn("Symphony.getQueueStats")(function* () {
+        const jobs = yield* repo.listJobs().pipe(
+          Effect.mapError((cause) => new QueueError({ message: cause.message, cause })),
+        )
+        const info = yield* config.get()
+        const symphonyConfig = info.symphony
+        const repos = symphonyConfig?.github?.repos ?? []
+        const queued = jobs.filter((j) => j.status === "queued").length
+        const processing = jobs.filter((j) => j.status === "processing").length
+        const completed = jobs.filter((j) => j.status === "completed").length
+        const failed = jobs.filter((j) => j.status === "failed").length
+        return {
+          queued,
+          processing,
+          completed,
+          failed,
+          total: jobs.length,
+          polling_active: Option.isSome(pollingFiber),
+          repos,
+          enabled: symphonyConfig?.enabled ?? false,
+        } as QueueStats
+      })
+
+      const svc = Service.of({ enqueue, processNext, pollIssues, startPolling, stopPolling, getQueueStats })
 
       // Auto-start polling on layer initialization.
       // Checks config.symphony.enabled — if disabled, returns immediately.
