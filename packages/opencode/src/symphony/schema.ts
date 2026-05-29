@@ -153,6 +153,18 @@ export const GitHubIssue = Schema.Struct({
 })
 export type GitHubIssue = Schema.Schema.Type<typeof GitHubIssue>
 
+export class DecomposeTask extends Schema.Class<DecomposeTask>("Symphony.DecomposeTask")({
+  id: Schema.String,
+  title: Schema.String,
+  description: Schema.String,
+  acceptance: Schema.Array(Schema.String),
+  depends_on: Schema.Array(Schema.String),
+}) {}
+
+export class DecomposeOutput extends Schema.Class<DecomposeOutput>("Symphony.DecomposeOutput")({
+  tasks: Schema.Array(DecomposeTask),
+}) {}
+
 export class ReviewResult extends Schema.Class<ReviewResult>("ReviewResult")({
   passed: Schema.Boolean,
   feedback: Schema.optional(Schema.String),

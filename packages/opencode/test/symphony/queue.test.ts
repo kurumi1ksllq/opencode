@@ -9,6 +9,7 @@ import { Database } from "@/storage/db"
 import { JobID, ReviewResult } from "@/symphony/schema"
 import { Review } from "@/symphony/review"
 import { Worker } from "@/symphony/worker"
+import { Decomposer } from "@/symphony/llm-decompose"
 import { testEffect } from "../lib/effect"
 
 const uid = () => crypto.randomUUID()
@@ -46,6 +47,14 @@ const mockReviewLayer = Layer.succeed(
   }),
 )
 
+// Mock Decomposer — returns empty task list so processNext tests don't need real decomposition
+const mockDecomposerLayer = Layer.succeed(
+  Decomposer,
+  Decomposer.of({
+    decompose: () => Effect.succeed([]),
+  }),
+)
+
 // Minimal mocks for services the Symphony layer requires but the tests don't exercise
 const mockConfigLayer = Layer.mock(Config.Service)({})
 const mockHttpLayer = Layer.succeed(
@@ -67,6 +76,7 @@ const it = testEffect(
       Layer.provide(mockHttpLayer),
       Layer.provide(mockReviewLayer),
       Layer.provide(mockWorkerLayer),
+      Layer.provide(mockDecomposerLayer),
     ),
     SymphonyRepo.layer,
     truncate,

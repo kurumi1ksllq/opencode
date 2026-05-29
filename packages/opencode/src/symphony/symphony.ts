@@ -9,7 +9,7 @@ import { SymphonyRepo } from "./repo"
 import type { TaskDefRow } from "./repo"
 import { Review } from "./review"
 import { Worker } from "./worker"
-import { decomposeJobTask } from "./decompose"
+import { Decomposer, llmDecomposer } from "./llm-decompose"
 import { getReadyTasks, isPlanComplete } from "./plan"
 
 // ---------------------------------------------------------------------------
@@ -73,7 +73,7 @@ function rowToTaskDef(row: TaskDefRow): TaskDef {
   })
 }
 
-export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service | Worker.Service | Review.Service> =
+export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Service | HttpClient.HttpClient | Worktree.Service | Worker.Service | Review.Service | Decomposer> =
   Layer.effect(
     Service,
     Effect.gen(function* () {
@@ -84,6 +84,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
       const worktree = yield* Worktree.Service
       const worker = yield* Worker.Service
       const review = yield* Review.Service
+      const decomposer = yield* Decomposer
 
       let pollingFiber: Option.Option<Fiber.Fiber<void, never>> = Option.none()
 
@@ -167,7 +168,9 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
 
         // --- Phase 3: Decompose job into Plan + TaskDefs ---
         const body = typeof job.payload?.body === "string" ? job.payload.body : undefined
-        const decomposed = decomposeJobTask(job.title, body)
+        const decomposed = yield* decomposer.decompose(job.title, body).pipe(
+          Effect.mapError((cause) => new QueueError({ message: cause.message, cause })),
+        )
         if (decomposed.length === 0) return
 
         const planId = crypto.randomUUID() as PlanID
@@ -507,6 +510,7 @@ export const defaultLayer = layer.pipe(
   Layer.provide(Review.defaultLayer),
   Layer.provide(Config.defaultLayer),
   Layer.provide(SymphonyRepo.layer),
+  Layer.provide(llmDecomposer),
 )
 
 export * as Symphony from "./symphony"

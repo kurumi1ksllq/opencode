@@ -1,0 +1,309 @@
+═══════════════════════════════════════════════════════════════════════════
+Token Analysis: Session ses_199fbe9ccffemo8kiDL1bdlQdf
+Model: deepseek-v4-flash
+═══════════════════════════════════════════════════════════════════════════
+
+WARNINGS
+───────────────────────────────────────────────────
+- Pricing for 'opencode-go/deepseek-v4-flash' was not found in models.json. Cost estimates use the default fallback rates ($1/M input, $3/M output, no cache pricing).
+- TokenScope used approximate token counting for 'deepseek-ai/DeepSeek-V3' because an exact public tokenizer could not be loaded.
+
+TOKEN BREAKDOWN BY CATEGORY
+─────────────────────────────────────────────────────────────────────────
+Estimated using tokenizer analysis of message content:
+
+Input Categories:
+  USER      ██░░░░░░░░░░░░░░░░░░░░░░░░░░░░     7.5% (56,334)
+  TOOLS     ████████████████████████████░░   92.5% (699,058)
+
+  Subtotal: 755,392 estimated input tokens
+
+Output Categories:
+  ASSISTANT ███░░░░░░░░░░░░░░░░░░░░░░░░░░░    10.9% (18,613)
+  REASONING ███████████████████████████░░░   89.1% (152,691)
+
+  Subtotal: 171,304 estimated output tokens
+
+Local Total: 926,696 tokens (estimated)
+
+TOOL USAGE BREAKDOWN
+─────────────────────────────────────────────────────────────────────────
+bash                 ████████░░░░░░░░░░░░░░░░░░░░░░   28.0% (195,580)  415x
+read                 ████████░░░░░░░░░░░░░░░░░░░░░░   26.8% (187,227)  140x
+background_output    ████████░░░░░░░░░░░░░░░░░░░░░░   26.5% (185,309)   56x
+task                 ████░░░░░░░░░░░░░░░░░░░░░░░░░░    12.9% (90,385)   80x
+websearch_web_search_exa █░░░░░░░░░░░░░░░░░░░░░░░░░░░░░     2.6% (18,102)    2x
+skill                ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░      1.3% (8,969)    4x
+todowrite            ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░      1.2% (8,730)   41x
+edit                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░      0.2% (1,199)   98x
+invalid              ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░      0.1% (1,035)    3x
+compress             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.1% (890)   63x
+grep                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.1% (875)   20x
+question             ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.0% (165)    3x
+write                ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.0% (117)   19x
+roampal-core_record_response ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.0% (115)    1x
+tokenscope           ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.0% (103)    2x
+ast_grep_search      ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░        0.0% (100)    6x
+session_list         ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░         0.0% (82)    1x
+glob                 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░         0.0% (66)    6x
+session_search       ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░          0.0% (9)    2x
+
+TOP CONTRIBUTORS
+─────────────────────────────────────────────────────────────────────────
+• bash                         195,580 tokens (21.1%)
+• read                         187,227 tokens (20.2%)
+• background_output            185,309 tokens (20.0%)
+• task                         90,385 tokens (9.8%)
+• websearch_web_search_exa     18,102 tokens (2.0%)
+
+═══════════════════════════════════════════════════════════════════════════
+MOST RECENT API CALL
+─────────────────────────────────────────────────────────────────────────
+
+Raw telemetry from last API response:
+  Input (fresh):        199,703 tokens
+  Cache read:            13,568 tokens
+  Output:                    45 tokens
+  Reasoning:                 16 tokens
+  Provider total:       213,332 tokens
+  Cost:              $0.0280
+  ─────────────────────────────────────
+  Total:                213,332 tokens
+
+═══════════════════════════════════════════════════════════════════════════
+SESSION TOTALS (All 848 API calls)
+─────────────────────────────────────────────────────────────────────────
+
+Assistant messages observed: 856 (structural count)
+
+Total tokens processed across the entire session (for cost calculation):
+
+  Input tokens:      37,236,467 (fresh tokens across all calls)
+  Cache read:        143,790,720 (cached tokens across all calls)
+  Cache write:                0 (tokens written to cache)
+  Output tokens:        255,804 (all model responses)
+  Reasoning tokens:     150,362 (thinking/reasoning)
+  ─────────────────────────────────────
+  Session Total:     181,433,353 tokens (for billing)
+  Cache read calls:         843 / 848
+  Cache write calls:          0 / 848
+
+═══════════════════════════════════════════════════════════════════════════
+SESSION COST
+─────────────────────────────────────────────────────────────────────────
+
+Token usage breakdown:
+  Input tokens:      37,236,467
+  Output tokens:        255,804
+  Reasoning tokens:     150,362
+  Cache read:        143,790,720
+
+─────────────────────────────────────────────────────────────────────────
+ACTUAL COST (from API):  $5.7294
+Estimated cost:          $38.4550 (+571.2% diff)
+
+Note: Actual cost from OpenCode includes provider-specific pricing
+and 200K+ context adjustments.
+
+══════════════════════════════════════════════════════════════════════════
+AVAILABLE SKILLS (always-available context)
+─────────────────────────────────────────────────────────────────────────
+
+These skills were recovered from the skill tool metadata available to this session.
+
+  Skill                  Description                                   Tokens
+  ───────────────────────────────────────────────────────────────────────
+  caveman                Ultra-compressed communication mode. Cuts to…     ~70
+  ───────────────────────────────────────────────────────────────────────
+  Total: ~70 tokens (1 skills available)
+
+  Note: Full skill tool description is ~2,262 tokens (includes boilerplate).
+
+═══════════════════════════════════════════════════════════════════════════
+AVAILABLE SUBAGENTS (in task tool definition)
+─────────────────────────────────────────────────────────────────────────
+
+These subagents are embedded in the task tool description and consume tokens on every API call.
+
+  Subagent               Description                                        Tokens
+  ───────────────────────────────────────────────────────────────────────
+  librarian              Specialized codebase understanding agent for mult…     ~97
+  explore                Contextual grep for codebases. Answers "Where is …     ~74
+  Metis - Plan Consulta… Pre-planning consultant that analyzes requests to…     ~41
+  oracle                 Read-only consultation agent. High-IQ reasoning s…     ~41
+  general                General-purpose agent for researching complex que…     ~40
+  Momus - Plan Critic    Expert reviewer for evaluating work plans against…     ~39
+  Sisyphus-Junior        Focused task executor. Same discipline, no delega…     ~27
+  build                  The default agent. Executes tools based on config…     ~19
+  plan                   Plan mode. Disallows all edit tools.                   ~11
+  ───────────────────────────────────────────────────────────────────────
+  Total: ~389 tokens (9 subagents available)
+
+  Note: Full task tool description is ~923 tokens (includes instructions/examples).
+
+═══════════════════════════════════════════════════════════════════════════
+LOADED SKILLS (on-demand content)
+─────────────────────────────────────────────────────────────────────────
+
+Skills loaded during this session via the skill tool.
+
+  Skill                  Message #     Tokens     Calls
+  ─────────────────────────────────────────────────────
+  git-master                   #363      7,352        1x
+  token-usage                  #709        870        2x
+  effect                       #954        746        1x
+  ─────────────────────────────────────────────────────
+  Total: 8,968 tokens (3 skills loaded)
+
+  Note: Loaded skill content stays in context (protected from pruning).
+
+═══════════════════════════════════════════════════════════════════════════
+TOOL DEFINITION COSTS (Estimated from argument analysis)
+─────────────────────────────────────────────────────────────────────────
+
+  Tool                Est. Tokens   Args   Complexity
+  ───────────────────────────────────────────────────────────────────
+  task                       ~560       7   complex (arrays/objects)
+  ast_grep_search            ~470       4   complex (arrays/objects)
+  grep                       ~430       5   simple
+  compress                   ~410       2   complex (arrays/objects)
+  roampal-core_record_response         ~410       2   complex (arrays/objects)
+  bash                       ~400       4   simple
+  edit                       ~400       4   simple
+  question                   ~380       1   complex (arrays/objects)
+  todowrite                  ~380       1   complex (arrays/objects)
+  read                       ~370       3   simple
+  background_output          ~370       3   simple
+  write                      ~340       2   simple
+  invalid                    ~340       2   simple
+  session_search             ~340       2   simple
+  session_list               ~340       2   simple
+  skill_mcp                  ~340       2   simple
+  websearch_web_search_exa         ~340       2   simple
+  glob                       ~340       2   simple
+  skill                      ~310       1   simple
+  tokenscope                 ~310       1   simple
+  ───────────────────────────────────────────────────────────────────
+  Total:             ~      7,580 tokens (20 enabled tools)
+
+  Note: Estimates inferred from tool call arguments in this session.
+        Actual schema tokens may vary +/-20%.
+
+═══════════════════════════════════════════════════════════════════════════
+CACHE EFFICIENCY
+─────────────────────────────────────────────────────────────────────────
+
+  Token Distribution:
+    Cache Read:        143,790,720 tokens   ████████████████████████░░░░░░  79.4%
+    Fresh Input:       37,236,467 tokens   ██████░░░░░░░░░░░░░░░░░░░░░░░░  20.6%
+  ───────────────────────────────────────────────────────────────────
+  Cache Hit Rate:      79.4% (cache read / (cache read + fresh input))
+
+  Cost Analysis (deepseek-v4-flash @ $1.00/M input, $0.00/M cache read, $0.00/M cache write):
+    Without caching:   $181.0272  (181,027,187 tokens x $1.00/M)
+    With caching:      $37.2365  (fresh x $1.00/M + cache read x $0.00/M + cache write x $0.00/M)
+  ───────────────────────────────────────────────────────────────────
+  Cost Savings:        $143.7907  (79.4% reduction)
+  Effective Rate:      $0.21/M tokens  (vs. $1.00/M standard)
+
+═══════════════════════════════════════════════════════════════════════════
+SUBAGENT COSTS (83 child sessions, 2248 API calls)
+─────────────────────────────────────────────────────────────────────────
+
+  explore                      $0.0268  (148,331 tokens, 6 calls)
+  explore                      $0.0210  (80,983 tokens, 3 calls)
+  explore                      $0.0201  (77,693 tokens, 3 calls)
+  explore                      $0.0293  (169,314 tokens, 5 calls)
+  explore                      $0.0248  (122,518 tokens, 4 calls)
+  explore                      $0.0233  (80,757 tokens, 3 calls)
+  explore                      $0.0404  (258,310 tokens, 9 calls)
+  ---                          $0.0074  (49,159 tokens, 1 calls)
+  explore                      $0.0359  (122,116 tokens, 2 calls)
+  explore                      $0.0085  (27,079 tokens, 2 calls)
+  ---                          $0.0213  (1,308,731 tokens, 20 calls)
+  Sisyphus-Junior              $0.0396  (4,973,140 tokens, 49 calls)
+  Sisyphus-Junior              $0.0252  (1,965,722 tokens, 24 calls)
+  Sisyphus-Junior              $0.0276  (2,084,658 tokens, 24 calls)
+  Sisyphus-Junior              $0.0276  (2,066,195 tokens, 24 calls)
+  Sisyphus-Junior              $0.0616  (6,291,823 tokens, 42 calls)
+  Sisyphus-Junior              $0.2203  (35,905,785 tokens, 183 calls)
+  Sisyphus-Junior              $0.0450  (4,986,339 tokens, 45 calls)
+  Sisyphus-Junior              $0.0283  (1,261,479 tokens, 14 calls)
+  Sisyphus-Junior              $0.1532  (14,789,024 tokens, 92 calls)
+  Sisyphus-Junior              $0.1438  (20,473,976 tokens, 148 calls)
+  Sisyphus-Junior              $0.0824  (13,998,008 tokens, 108 calls)
+  Sisyphus-Junior              $0.0237  (2,315,520 tokens, 40 calls)
+  Sisyphus-Junior              $0.0429  (2,054,657 tokens, 18 calls)
+  oracle                       $0.0307  (868,489 tokens, 13 calls)
+  Sisyphus-Junior              $0.0651  (7,783,852 tokens, 54 calls)
+  Sisyphus-Junior              $0.0740  (12,986,873 tokens, 113 calls)
+  Sisyphus-Junior              $0.1393  (23,967,385 tokens, 168 calls)
+  Sisyphus-Junior              $0.0243  (1,442,379 tokens, 20 calls)
+  Sisyphus-Junior              $0.0243  (1,352,607 tokens, 19 calls)
+  Sisyphus-Junior              $0.0502  (2,358,605 tokens, 25 calls)
+  Sisyphus-Junior              $0.0129  (234,130 tokens, 5 calls)
+  Sisyphus-Junior              $0.0133  (328,092 tokens, 7 calls)
+  explore                      $0.0226  (492,018 tokens, 11 calls)
+  explore                      $0.0123  (245,910 tokens, 9 calls)
+  oracle                       $0.0398  (715,786 tokens, 11 calls)
+  plan                         $0.0871  (1,517,981 tokens, 21 calls)
+  explore                      $0.0067  (154,969 tokens, 7 calls)
+  explore                      $0.0064  (138,538 tokens, 6 calls)
+  explore                      $0.0081  (162,347 tokens, 8 calls)
+  explore                      $0.0126  (402,871 tokens, 11 calls)
+  explore                      $0.0138  (217,981 tokens, 6 calls)
+  Sisyphus-Junior              $0.0233  (702,331 tokens, 13 calls)
+  Sisyphus-Junior              $0.0144  (531,417 tokens, 11 calls)
+  Sisyphus-Junior              $0.0323  (2,495,655 tokens, 36 calls)
+  Sisyphus-Junior              $0.0193  (737,357 tokens, 12 calls)
+  Sisyphus-Junior              $0.0351  (4,658,755 tokens, 58 calls)
+  Sisyphus-Junior              $0.0263  (1,598,285 tokens, 19 calls)
+  Sisyphus-Junior              $0.0680  (12,622,078 tokens, 130 calls)
+  Sisyphus-Junior              $0.0158  (613,824 tokens, 11 calls)
+  Sisyphus-Junior              $0.0204  (1,226,302 tokens, 20 calls)
+  explore                      $0.0092  (206,255 tokens, 7 calls)
+  explore                      $0.0119  (338,354 tokens, 10 calls)
+  Sisyphus-Junior              $0.0185  (1,051,819 tokens, 18 calls)
+  Sisyphus-Junior              $0.0918  (14,758,130 tokens, 101 calls)
+  Sisyphus-Junior              $0.0317  (2,383,005 tokens, 25 calls)
+  plan                         $0.0190  (459,838 tokens, 8 calls)
+  Sisyphus-Junior              $0.0136  (293,260 tokens, 6 calls)
+  Sisyphus-Junior              $0.0146  (499,188 tokens, 10 calls)
+  Sisyphus-Junior              $0.0359  (2,006,409 tokens, 26 calls)
+  Sisyphus-Junior              $0.0242  (935,056 tokens, 17 calls)
+  Sisyphus-Junior              $0.0254  (1,634,840 tokens, 22 calls)
+  Sisyphus-Junior              $0.0179  (896,317 tokens, 16 calls)
+  Sisyphus-Junior              $0.0320  (2,634,496 tokens, 42 calls)
+  Sisyphus-Junior              $0.0198  (1,093,724 tokens, 17 calls)
+  plan                         $0.0396  (843,139 tokens, 11 calls)
+  explore                      $0.0119  (254,621 tokens, 7 calls)
+  Sisyphus-Junior              $0.0128  (233,096 tokens, 5 calls)
+  Sisyphus-Junior              $0.0137  (345,165 tokens, 7 calls)
+  Sisyphus-Junior              $0.0549  (4,056,854 tokens, 40 calls)
+  Sisyphus-Junior              $0.0280  (2,061,741 tokens, 25 calls)
+  plan                         $0.0177  (1,064,814 tokens, 13 calls)
+  Sisyphus-Junior              $0.0296  (2,506,490 tokens, 30 calls)
+  Sisyphus-Junior              $0.0161  (398,406 tokens, 7 calls)
+  Sisyphus-Junior              $0.0301  (1,268,548 tokens, 19 calls)
+  explore                      $0.0128  (438,316 tokens, 12 calls)
+  plan                         $0.0229  (1,138,211 tokens, 17 calls)
+  Sisyphus-Junior              $0.0076  (276,971 tokens, 6 calls)
+  Sisyphus-Junior              $0.0187  (286,146 tokens, 6 calls)
+  Sisyphus-Junior              $0.0184  (284,377 tokens, 6 calls)
+  Sisyphus-Junior              $0.0181  (279,026 tokens, 6 calls)
+  Sisyphus-Junior              $0.0127  (184,759 tokens, 4 calls)
+  Sisyphus-Junior              $0.0146  (442,173 tokens, 9 calls)
+─────────────────────────────────────────────────────────────────────────
+Subagent Total:            $2.8239  (241,721,678 tokens, 2248 calls)
+
+═══════════════════════════════════════════════════════════════════════════
+SUMMARY
+─────────────────────────────────────────────────────────────────────────
+
+                          Cost        Tokens          API Calls
+  Main session:      $    5.7294    181,433,353           848
+  Subagents:         $    2.8239    241,721,678          2248
+─────────────────────────────────────────────────────────────────────────
+  TOTAL:             $    8.5533    423,155,031          3096
+
+═══════════════════════════════════════════════════════════════════════════

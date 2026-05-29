@@ -9,6 +9,7 @@ import { Database } from "@/storage/db"
 import { ReviewResult } from "@/symphony/schema"
 import { Review } from "@/symphony/review"
 import { Worker } from "@/symphony/worker"
+import { Decomposer } from "@/symphony/llm-decompose"
 import { testEffect } from "../lib/effect"
 
 // Fake GitHub issues matching the GitHubIssue Schema
@@ -61,6 +62,14 @@ const mockWorktreeLayer = Layer.mock(Worktree.Service)({})
 // Mock Worker — no methods needed for poller tests
 const mockWorkerLayer = Layer.mock(Worker.Service)({})
 
+// Mock Decomposer — returns empty task list (poller tests don't need decomposition)
+const mockDecomposerLayer = Layer.succeed(
+  Decomposer,
+  Decomposer.of({
+    decompose: () => Effect.succeed([]),
+  }),
+)
+
 // Mock Review
 const mockReviewLayer = Layer.succeed(
   Review.Service,
@@ -104,6 +113,7 @@ const makeTestLayer = (configLayer: Layer.Layer<Config.Service>) =>
       Layer.provide(mockHttpLayer),
       Layer.provide(mockReviewLayer),
       Layer.provide(mockWorkerLayer),
+      Layer.provide(mockDecomposerLayer),
     ),
     SymphonyRepo.layer,
     truncate,
