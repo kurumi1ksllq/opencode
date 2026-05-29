@@ -1,10 +1,10 @@
-import { Context, Duration, Effect, Fiber, Layer, Option, Schedule, Scope } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/unstable/http"
+import { Context, Duration, Effect, Fiber, Layer, Option, Schedule, Scope, Schema } from "effect"
+import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/unstable/http"
 
 import { Worktree } from "@/worktree"
 import { Config } from "@/config/config"
 import { ConfigSymphony } from "./config/symphony"
-import { Job, JobID, JobStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
+import { GitHubIssue, Job, JobID, JobStatus, PlanID, QueueError, TaskDef, TaskID, TaskStatus, Workspace, WorkspaceID, WorkspaceStatus } from "./schema"
 import { SymphonyRepo } from "./repo"
 import type { TaskDefRow } from "./repo"
 import { Review } from "./review"
@@ -25,6 +25,7 @@ export interface Interface {
     priority?: number
   }) => Effect.Effect<{ job: Job; workspace?: Workspace }, QueueError>
   readonly processNext: () => Effect.Effect<void, QueueError>
+  readonly pollIssues: () => Effect.Effect<void>
   readonly startPolling: () => Effect.Effect<void>
   readonly stopPolling: () => Effect.Effect<void>
 }
@@ -221,28 +222,88 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         }
       })
 
-      const startPolling = Effect.fn("Symphony.startPolling")(function* () {
-        if (Option.isSome(pollingFiber)) return
+      const processRepoIssues = Effect.fn("Symphony.processRepoIssues")(
+        (owner: string, name: string, repoStr: string) =>
+          Effect.gen(function* () {
+            const request = HttpClientRequest.get(
+              `https://api.github.com/repos/${owner}/${name}/issues?state=open&per_page=10&sort=created&direction=desc`,
+            ).pipe(HttpClientRequest.acceptJson)
 
+            const httpOk = HttpClient.filterStatusOk(http)
+            const response = yield* httpOk.execute(request)
+            const issues = yield* HttpClientResponse.schemaBodyJson(Schema.Array(GitHubIssue))(response)
+
+            for (const issue of issues) {
+              const existing = yield* repo.findJobByIssue({
+                repo_owner: owner,
+                repo_name: name,
+                issue_number: issue.number,
+              })
+              if (Option.isSome(existing)) continue
+
+              yield* enqueue({
+                source: "github",
+                type: "issue",
+                title: issue.title,
+                payload: {
+                  repo_owner: owner,
+                  repo_name: name,
+                  issue_number: issue.number,
+                  body: issue.body ?? undefined,
+                  html_url: issue.html_url,
+                  github_id: issue.id,
+                  labels: issue.labels.map((l: { name: string }) => l.name),
+                  user: issue.user?.login ?? undefined,
+                },
+                priority: 5,
+              })
+
+              yield* Effect.logInfo("Enqueued job from GitHub issue", {
+                repo: repoStr,
+                issue: issue.number,
+                title: issue.title,
+              })
+            }
+          }),
+      )
+
+      const pollIssues = Effect.fn("Symphony.pollIssues")(function* () {
         const info = yield* config.get()
         const symphonyConfig = info.symphony
         if (!symphonyConfig?.enabled) return
 
-        const interval = symphonyConfig.github?.polling_interval_seconds ?? 30
         const repos = symphonyConfig.github?.repos ?? []
+        if (repos.length === 0) return
 
-        const fiber = yield* Effect.gen(function* () {
-          for (const repoStr of repos) {
-            const parts = repoStr.split("/")
-            if (parts.length !== 2) continue
-
-            const request = HttpClientRequest.get(
-              `https://api.github.com/repos/${parts[0]}/${parts[1]}/issues?state=open&per_page=10&sort=created&direction=desc`,
-            ).pipe(HttpClientRequest.acceptJson)
-
-            yield* http.execute(request).pipe(Effect.ignore)
+        for (const repoStr of repos) {
+          const parts = repoStr.split("/")
+          if (parts.length !== 2) {
+            yield* Effect.logWarning("Invalid repo string in config", { repo: repoStr })
+            continue
           }
-        }).pipe(
+
+          const [owner, name] = parts
+
+          yield* processRepoIssues(owner, name, repoStr).pipe(
+            Effect.catch((err) =>
+              Effect.logWarning("GitHub polling error for repo", {
+                repo: repoStr,
+                error: err.message,
+              }),
+            ),
+          )
+        }
+      })
+
+      const startPolling = Effect.fn("Symphony.startPolling")(function* () {
+        if (Option.isSome(pollingFiber)) return
+
+        const info = yield* config.get()
+        if (!info.symphony?.enabled) return
+
+        const interval = info.symphony.github?.polling_interval_seconds ?? 30
+
+        const fiber = yield* pollIssues().pipe(
           Effect.repeat(Schedule.fixed(Duration.seconds(interval))),
           Effect.asVoid,
           Effect.forkIn(scope),
@@ -258,7 +319,7 @@ export const layer: Layer.Layer<Service, never, SymphonyRepo.Service | Config.Se
         }
       })
 
-      const svc = Service.of({ enqueue, processNext, startPolling, stopPolling })
+      const svc = Service.of({ enqueue, processNext, pollIssues, startPolling, stopPolling })
 
       // Auto-start polling on layer initialization.
       // Checks config.symphony.enabled — if disabled, returns immediately.

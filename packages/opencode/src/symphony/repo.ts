@@ -50,6 +50,11 @@ export interface Interface {
     status: string,
     fields?: Partial<Pick<JobRow, "worktree_name" | "payload">>,
   ) => Effect.Effect<void, SymphonyRepoError>
+  readonly findJobByIssue: (input: {
+    repo_owner: string
+    repo_name: string
+    issue_number: number
+  }) => Effect.Effect<Option.Option<JobRow>, SymphonyRepoError>
   readonly deleteJob: (id: JobID) => Effect.Effect<void, SymphonyRepoError>
 
   // Plan methods
@@ -143,6 +148,26 @@ export const layer: Layer.Layer<Service> = Layer.effect(
         ).pipe(Effect.asVoid),
     )
 
+    const findJobByIssue = Effect.fn("SymphonyRepo.findJobByIssue")(
+      (input: { repo_owner: string; repo_name: string; issue_number: number }) =>
+        query((db) =>
+          db.select().from(JobTable).where(eq(JobTable.source, "github" as any)).all(),
+        ).pipe(
+          Effect.map((rows) =>
+            Option.fromNullishOr(
+              rows.find((row) => {
+                const p = row.payload as Record<string, unknown>
+                return (
+                  p.repo_owner === input.repo_owner &&
+                  p.repo_name === input.repo_name &&
+                  p.issue_number === input.issue_number
+                )
+              }),
+            ),
+          ),
+        ),
+    )
+
     const deleteJob = Effect.fn("SymphonyRepo.deleteJob")((id: JobID) =>
       tx((db) => {
         db.delete(WorkspaceTable).where(eq(WorkspaceTable.job_id, id)).run()
@@ -225,6 +250,7 @@ export const layer: Layer.Layer<Service> = Layer.effect(
       getJob,
       listJobs,
       updateJobStatus,
+      findJobByIssue,
       deleteJob,
       insertPlan,
       getPlan,

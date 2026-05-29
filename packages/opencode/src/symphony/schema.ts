@@ -137,6 +137,22 @@ export class ReviewError extends Schema.TaggedErrorClass<ReviewError>()("Symphon
   cause: Schema.optional(Schema.Defect),
 }) {}
 
+// --- GitHub Issues API response shape ---
+
+export const GitHubIssue = Schema.Struct({
+  id: Schema.Number,
+  number: Schema.Number,
+  title: Schema.String,
+  body: Schema.NullOr(Schema.String),
+  html_url: Schema.String,
+  state: Schema.String,
+  created_at: Schema.String,
+  updated_at: Schema.String,
+  labels: Schema.Array(Schema.Struct({ name: Schema.String })),
+  user: Schema.NullOr(Schema.Struct({ login: Schema.String })),
+})
+export type GitHubIssue = Schema.Schema.Type<typeof GitHubIssue>
+
 export class ReviewResult extends Schema.Class<ReviewResult>("ReviewResult")({
   passed: Schema.Boolean,
   feedback: Schema.optional(Schema.String),
